@@ -9,6 +9,7 @@ struct VideoPlayerView: View {
     @State private var isQuizCompleted = false
     @State private var userScore: Int? = nil
     @State private var userId = Auth.auth().currentUser?.uid
+    @State private var userPoints: Int = 0
     @Environment(\.presentationMode) var presentationMode // Allows dismissing the view
 
     var body: some View {
@@ -16,21 +17,23 @@ struct VideoPlayerView: View {
             HStack {
                 Text(video.title)
                     .font(.title)
+                    .padding()
                     .bold()
+                
                 Spacer()
+                
                 HStack(spacing: 4) {
                     Image(systemName: "star.fill")
                         .foregroundColor(.yellow)
-                    Text("\(video.points)")
+                    Text("\(userPoints)")
                         .font(.headline)
                         .bold()
                         .foregroundColor(.black)
                 }
                 .padding(10)
-                .background(Color(.systemGray6))
                 .cornerRadius(10)
             }
-            .padding(.horizontal)
+            .padding([.top, .leading, .trailing])
 
             YouTubePlayer(videoID: extractYouTubeID(from: video.videoURL), onVideoFinished: {
                 isQuizEnabled = true
@@ -48,6 +51,7 @@ struct VideoPlayerView: View {
             
 
             HStack(spacing: 8) {
+                
                 Image(systemName: "flame.fill")
                     .foregroundColor(.orange)
                 Text("\(video.quiz.count)")
@@ -57,6 +61,14 @@ struct VideoPlayerView: View {
                 Image(systemName: "clock.fill")
                     .foregroundColor(.blue)
                 Text(video.duration)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                Spacer()
+                
+                Image(systemName: "star.fill")
+                    .foregroundColor(.yellow)
+                Text("\(video.points)")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
@@ -107,6 +119,7 @@ struct VideoPlayerView: View {
         .background(Color(.systemGray6))
         .onAppear {
             checkIfQuizAttempted()
+            fetchUserPoints()
         }
     }
     
@@ -155,6 +168,25 @@ struct VideoPlayerView: View {
                     userScore = nil
                 }
             }
+        }
+    }
+    
+    func fetchUserPoints() {
+        guard let user = Auth.auth().currentUser else { return }
+        let db = Firestore.firestore()
+        db.collection("users").document(user.uid).getDocument { snapshot, error in
+            if let error = error {
+                print("Error fetching user points: \(error.localizedDescription)")
+                return
+            }
+            
+            guard let data = snapshot?.data(),
+                  let points = data["points"] as? Int else {
+                print("User points not found")
+                return
+            }
+            
+            self.userPoints = points  // Update the user points
         }
     }
 }

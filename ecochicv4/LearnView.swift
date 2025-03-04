@@ -183,41 +183,52 @@ struct VideoRow: View {
                 }
                 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(video.title)
-                        .font(.system(size: 20))
-                        .foregroundColor(.primary)
-                        .padding(.bottom, 2)
+                            HStack {
+                                Text(video.title)
+                                    .font(.system(size: 20))
+                                    .foregroundColor(.primary)
+
+                                Spacer() // Pushes points all the way right
+
+                                HStack(spacing: 4) {
+                                    Image(systemName: "star.fill")
+                                        .foregroundColor(.yellow)
+                                    Text("\(video.points)")
+                                        .font(.subheadline)
+                                        .foregroundColor(.black)
+                                        .bold()
+                                }
+                            }
+                            .padding(.top, 8)
+                            
+                            Text(video.about)
+                                .font(.system(size: 16))
+                                .foregroundColor(.gray)
+                                .lineLimit(2)
+                                .truncationMode(.tail)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
                     
-                    Text(video.about)
-                        .font(.system(size: 16))
-                        .foregroundColor(.gray)
-                        .lineLimit(2)
-                        .truncationMode(.tail)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer()
-            }
-            
-            // 🔹 This HStack is now INSIDE the white box
-            HStack(spacing: 8) {
-                Image(systemName: "flame.fill")
-                    .foregroundColor(.orange)
-                Text("\(video.quiz.count)")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                
-                Image(systemName: "clock.fill")
-                    .foregroundColor(.blue)
-                Text(video.duration)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    HStack(spacing: 8) {
+                        Image(systemName: "flame.fill")
+                            .foregroundColor(.orange)
+                        Text("\(video.quiz.count)")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
+                        Image(systemName: "clock.fill")
+                            .foregroundColor(.blue)
+                        Text(video.duration)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
 
-                Spacer()
+                        Spacer() 
 
-                Image(systemName: isQuizCompleted ? "checkmark.circle.fill" : "checkmark.circle")
-                    .foregroundColor(isQuizCompleted ? .green : .gray)
-            }
-            .padding(.top, 8) // Add a bit of spacing within the box
+                        Image(systemName: isQuizCompleted ? "checkmark.circle.fill" : "checkmark.circle")
+                            .foregroundColor(isQuizCompleted ? .green : .gray)
+                    }
+                    .padding(.top, 8)
             
         }
         .padding()

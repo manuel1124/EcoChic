@@ -7,43 +7,46 @@ struct ProfileView: View {
     @State private var name: String = "Loading..."
     @State private var userEmail: String = "Loading..."
     @State private var progress: Int = 0
+    @State private var userPoints: Int = 0  // Added user points
 
     var body: some View {
         VStack(spacing: 20) {
-            Text("Profile")
-                .font(.largeTitle)
-                .padding(.bottom, 10)
+            // Profile title with points (like Eco Shorts)
+            HStack {
+                Text("Profile")
+                    .font(.title)
+                    .bold()
+                
+                Spacer()
 
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text("Name:")
+                HStack(spacing: 4) {
+                    Image(systemName: "star.fill")
+                        .foregroundColor(.yellow)
+                    Text("\(userPoints)")
                         .font(.headline)
-                    Spacer()
-                    Text(name)
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
+                        .bold()
+                        .foregroundColor(.black)
                 }
-
-                HStack {
-                    Text("Email:")
-                        .font(.headline)
-                    Spacer()
-                    Text(userEmail)
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                }
-
-                HStack {
-                    Text("Progress:")
-                        .font(.headline)
-                    Spacer()
-                    Text("\(progress) quizzes completed")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                }
+                .padding(10)
+                .cornerRadius(10)
             }
-            .padding(.horizontal, 16)
+            .padding(.top)
+            .padding(.horizontal)
 
+            // Profile Info Card
+            VStack(alignment: .leading, spacing: 12) {
+                ProfileRow(label: "Name", value: name)
+                ProfileRow(label: "Email", value: userEmail)
+                ProfileRow(label: "Points", value: "\(userPoints)")
+                //ProfileRow(label: "Progress", value: "\(progress) quizzes completed")
+            }
+            .padding()
+            .background(Color.white)
+            .cornerRadius(12)
+            .shadow(radius: 3)
+            .padding(.horizontal)
+
+            // Logout Button
             Button(action: {
                 do {
                     try appController.signOut()
@@ -55,15 +58,16 @@ struct ProfileView: View {
                     .fontWeight(.bold)
                     .frame(width: 200)
                     .padding()
-                    .background(Color.blue)
+                    .background(Color.red)
                     .foregroundColor(.white)
                     .cornerRadius(25)
             }
-            .padding(.horizontal, 8)
+            .padding(.top, 20)
 
             Spacer()
         }
         .padding()
+        .background(Color(.systemGray6))
         .onAppear(perform: fetchUserProfile)
     }
 
@@ -77,7 +81,8 @@ struct ProfileView: View {
         userRef.getDocument { document, error in
             if let document = document, document.exists {
                 name = document.data()?["name"] as? String ?? "No Name"
-                progress = document.data()?["progress"] as? Int ?? 0
+                //progress = document.data()?["progress"] as? Int ?? 0
+                userPoints = document.data()?["points"] as? Int ?? 0 // Fetch user points
             } else {
                 print("Error fetching user profile: \(error?.localizedDescription ?? "Unknown error")")
             }
@@ -85,6 +90,21 @@ struct ProfileView: View {
     }
 }
 
-#Preview {
-    ProfileView()
+// Reusable profile row component
+struct ProfileRow: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        HStack {
+            Text(label + ":")
+                .font(.headline)
+                .foregroundColor(.black)
+            Spacer()
+            Text(value)
+                .font(.subheadline)
+                .foregroundColor(.gray)
+        }
+        .padding(.vertical, 5)
+    }
 }

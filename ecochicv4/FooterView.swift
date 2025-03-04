@@ -1,10 +1,3 @@
-//
-//  Footer.swift
-//  ecochicv4
-//
-//  Created by Manuel Teran on 2024-12-27.
-//
-
 import SwiftUI
 
 struct FooterView: View {
@@ -22,16 +15,10 @@ struct FooterView: View {
                     Text("Store")
                 }
 
-            SearchView()
+            DiscoverView()
                 .tabItem {
                     Image(systemName: "magnifyingglass")
-                    Text("Search")
-                }
-
-            NotificationView()
-                .tabItem {
-                    Image(systemName: "bell")
-                    Text("Notifications")
+                    Text("Discover")
                 }
 
             ProfileView()
@@ -39,10 +26,19 @@ struct FooterView: View {
                     Image(systemName: "person")
                     Text("Profile")
                 }
-        }
+        }.background(Color(.systemGray6))
+            .accentColor(Color(hex: "#98BE8E"))
     }
 }
 
-#Preview {
-    FooterView()
+extension Color {
+    init(hex: String) {
+        let hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "#", with: "")
+        var rgb: UInt64 = 0
+        Scanner(string: hexSanitized).scanHexInt64(&rgb)
+        let red = Double((rgb & 0xFF0000) >> 16) / 255.0
+        let green = Double((rgb & 0x00FF00) >> 8) / 255.0
+        let blue = Double(rgb & 0x0000FF) / 255.0
+        self.init(red: red, green: green, blue: blue)
+    }
 }

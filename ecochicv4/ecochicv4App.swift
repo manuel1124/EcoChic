@@ -1,28 +1,32 @@
-//
-//  ecochicv4App.swift
-//  ecochicv4
-//
-//  Created by Manuel Teran on 2024-12-27.
-//
-
 import SwiftUI
 import FirebaseCore
+import FirebaseAuth
 
 class AppDelegate: NSObject, UIApplicationDelegate {
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        // Configure Firebase
         FirebaseApp.configure()
-
         return true
+    }
+
+    func application(
+        _ app: UIApplication,
+        open url: URL,
+        options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+    ) -> Bool {
+        if Auth.auth().isSignIn(withEmailLink: url.absoluteString) {
+            // Notify SignInView that the email link was clicked
+            NotificationCenter.default.post(name: NSNotification.Name("EmailLinkReceived"), object: url)
+            return true
+        }
+        return false
     }
 }
 
 @main
 struct EcoChic: App {
-    // Register AppDelegate for Firebase and Google Maps setup
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
 
     @State private var appController = AppController()

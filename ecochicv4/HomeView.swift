@@ -1,531 +1,187 @@
 import SwiftUI
 import FirebaseAuth
-import AVKit
 import FirebaseFirestore
+import CoreLocation
 
 struct HomeView: View {
+    @State private var userPoints: Int = 0
+    @State private var stores: [Store] = []  // Store full objects instead of tuples
+
+    let columns = [GridItem(.flexible()), GridItem(.flexible())]
     
-    @State private var videos: [Video] = [] // Videos loaded from Firestore
+    let categories = [
+        (title: "Eco Shorts", imageName: "Eco Shorts"),
+        (title: "Fact or Fiction", imageName: "Fact or Fiction"),
+        (title: "Blitz Round", imageName: "Blitz Round"),
+        (title: "Style Persona", imageName: "Style Persona")
+    ]
 
     var body: some View {
-        NavigationView {
-            VStack {
-                Text("Videos Available")
-                    .font(.headline)
-                    .padding()
-
-                ScrollView {
-                    LazyVGrid(
-                        columns: [GridItem(.adaptive(minimum: 150), spacing: 16)],
-                        spacing: 16
-                    ) {
-                        ForEach(videos) { video in
-                            NavigationLink(destination: VideoPlayerView(video: video)) {
-                                VideoCard(video: video)
-                            }
-                        }
-                    }
-                    .padding()
-                }
-            }
-            .onAppear {
-                //addNewVideoWithQuiz()
-                fetchVideos()
-                //addBasicVideo()
-            }
-        }
-    }
-    
-    func fetchVideos() {
-        let db = Firestore.firestore()
-        db.collection("videos").getDocuments { snapshot, error in
-            if let error = error {
-                print("Error fetching videos: \(error.localizedDescription)")
-                return
-            }
-
-            guard let documents = snapshot?.documents else { return }
-
-            self.videos = documents.compactMap { doc in
-                let data = doc.data()
-                
-                guard let title = data["title"] as? String,
-                      let duration = data["duration"] as? String,
-                      let videoURL = data["url"] as? String,
-                      let thumbnailURL = data["thumbnailUrl"] as? String else {
-                    return nil
-                }
-                
-                // Safely parse the quiz data
-                let quiz: [QuizQuestion] = (data["quiz"] as? [[String: Any]])?.compactMap { quizData in
-                    guard let questionText = quizData["questionText"] as? String,
-                          let options = quizData["options"] as? [String],
-                          let correctAnswer = quizData["correctAnswer"] as? String else {
-                        return nil
-                    }
-                    return QuizQuestion(
-                        questionText: questionText,
-                        options: options,
-                        correctAnswer: correctAnswer
-                    )
-                } ?? []
-
-                return Video(
-                    id: doc.documentID,
-                    title: title,
-                    duration: duration,
-                    videoURL: videoURL,
-                    thumbnailURL: thumbnailURL,
-                    quiz: quiz
-                )
-            }
-        }
-    }
-     
-}
-
-
-struct VideoPlayerView: View {
-    let video: Video
-    @State private var isQuizCompleted = false
-    @State private var userScore: Int? = nil
-    @State private var userId = Auth.auth().currentUser?.uid
-    @State private var isFullscreen = false
-
-    var body: some View {
-        Group {
-            if isFullscreen {
-                fullscreenVideoPlayer
-            } else {
-                standardVideoPlayer
-            }
-        }
-        .onAppear {
-            checkIfQuizAttempted()
-        }
-    }
-
-    private var standardVideoPlayer: some View {
-        VStack(spacing: 16) {
-            if let videoURL = URL(string: video.videoURL) {
-                ZStack(alignment: .topTrailing) {
-                    VideoPlayerContainer(videoURL: videoURL, isFullscreen: $isFullscreen)
-
-                    Button(action: {
-                        withAnimation {
-                            isFullscreen.toggle()
-                        }
-                    }) {
-                        Image(systemName: "arrow.up.left.and.arrow.down.right")
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.black.opacity(0.7))
-                            .clipShape(Circle())
-                    }
-                    .padding(.top, 16)
-                    .padding(.trailing, 16)
-                }
-            } else {
-                Text("Invalid video URL")
-                    .foregroundColor(.red)
-                    .padding()
-            }
-
-            // Quiz and Video Details
-            VStack(spacing: 16) {
-                Text(video.title)
-                    .font(.title)
-                    .padding()
-
-                if isQuizCompleted {
-                    VStack(spacing: 8) {
-                        Text("Quiz Completed!")
-                            .font(.title)
-                            .foregroundColor(.green)
-
-                        if let score = userScore {
-                            Text("Your Score: \(score)%")
-                                .font(.headline)
-                                .padding(.bottom)
-                        } else {
-                            Text("Score unavailable.")
-                                .font(.headline)
-                                .padding(.bottom)
-                        }
-                    }
-                } else {
-                    NavigationLink(destination: QuizView(quiz: video.quiz, videoId: video.id)) {
-                        Text("Continue to Quiz")
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(8)
-                            .padding(.horizontal)
-                    }
-                }
-
-                Spacer()
-            }
-            .padding()
-        }
-    }
-
-    private var fullscreenVideoPlayer: some View {
-        ZStack(alignment: .topTrailing) {
-            if let videoURL = URL(string: video.videoURL) {
-                VideoPlayerContainer(videoURL: videoURL, isFullscreen: $isFullscreen)
-
-                Button(action: {
-                    withAnimation {
-                        isFullscreen.toggle()
-                    }
-                }) {
-                    Image(systemName: "arrow.down.right.and.arrow.up.left")
-                        .foregroundColor(.white)
+        NavigationStack { // Replacing NavigationView with NavigationStack
+            VStack(alignment: .leading) {
+                HStack {
+                    Text("Home")
+                        .font(.title)
+                        .bold()
                         .padding()
-                        .background(Color.black.opacity(0.7))
-                        .clipShape(Circle())
-                }
-                .padding(.top, 40)
-                .padding(.trailing, 16)
-            } else {
-                Text("Invalid video URL")
-                    .foregroundColor(.red)
-                    .padding()
-            }
-        }
-        .background(Color.black.edgesIgnoringSafeArea(.all))
-    }
-
-    private func checkIfQuizAttempted() {
-        guard let userId = userId else { return }
-        let db = Firestore.firestore()
-        let userRef = db.collection("users").document(userId)
-
-        userRef.getDocument { document, error in
-            if let error = error {
-                print("Error fetching user document: \(error.localizedDescription)")
-                return
-            }
-
-            if let document = document, document.exists {
-                let completedQuizzes = document.data()?["completedQuizzes"] as? [String: Int] ?? [:]
-
-                DispatchQueue.main.async {
-                    if let score = completedQuizzes[video.id] {
-                        isQuizCompleted = true
-                        userScore = score
-                    } else {
-                        isQuizCompleted = false
-                        userScore = nil
+                    
+                    Spacer()
+                    
+                    HStack(spacing: 4) {
+                        Image(systemName: "star.fill")
+                            .foregroundColor(.yellow)
+                        Text("\(userPoints)")
+                            .font(.headline)
+                            .bold()
+                            .foregroundColor(.black)
                     }
+                    .padding(10)
+                    .cornerRadius(10)
                 }
-            } else {
-                DispatchQueue.main.async {
-                    isQuizCompleted = false
-                    userScore = nil
-                }
-            }
-        }
-    }
-}
-
-
-struct VideoPlayerContainer: View {
-    let videoURL: URL
-    @Binding var isFullscreen: Bool
-    @State private var player: AVPlayer?
-
-    var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                Color.black.edgesIgnoringSafeArea(isFullscreen ? .all : [])
-
-                if let player = player {
-                    VideoPlayer(player: player)
-                        .aspectRatio(16 / 9, contentMode: .fit)
-                        .frame(
-                            width: isFullscreen ? geometry.size.width : geometry.size.width,
-                            height: isFullscreen ? geometry.size.height : 300
-                        )
-                        .onAppear {
-                            player.play()
-                        }
-                        .onDisappear {
-                            player.pause()
-                        }
-                        .onTapGesture {
-                            if isFullscreen {
-                                withAnimation {
-                                    isFullscreen.toggle()
+                .padding([.top, .leading, .trailing])
+                
+                Text("Your favourite stores")
+                    .font(.headline)
+                    .padding(.leading, 25)
+                
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(stores) { store in
+                            if let url = URL(string: store.thumbnailUrl) {
+                                NavigationLink(destination: StoreDetailView(store: store, userPoints: $userPoints)) {
+                                    AsyncImage(url: url) { image in
+                                        image.resizable()
+                                            .scaledToFill()
+                                            .frame(width: 60, height: 60)
+                                            .clipShape(Circle())
+                                            .overlay(Circle().stroke(Color.clear, lineWidth: 2))
+                                    } placeholder: {
+                                        Circle()
+                                            .fill(Color.gray.opacity(0.2)) // Improved visibility for placeholder
+                                            .frame(width: 60, height: 60)
+                                    }
                                 }
                             }
                         }
-                } else {
-                    Text("Loading video...")
-                        .foregroundColor(.white)
+                    }
+                    .padding(.leading, 25)
+                    .padding(.trailing, 10)
                 }
+                .frame(height: 80)
+
+                //Spacer()
+                
+                // "Categories" heading
+                Text("Categories")
+                    .font(.headline)
+                    .padding(.leading, 25)
+                
+                // Grid of category boxes
+                LazyVGrid(columns: columns, spacing: 10) {
+                    ForEach(categories, id: \.title) { category in
+                        NavigationLink(destination: LearnView().navigationBarBackButtonHidden(true)) {
+                            CategoryBox(imageName: category.imageName)
+                        }
+                    }
+                }
+                .padding(.horizontal)
+                
+                Spacer()
             }
             .onAppear {
-                player = AVPlayer(url: videoURL)
+                fetchUserPoints()
+                fetchStores()
             }
-            .onDisappear {
-                player?.pause()
-                player = nil // Release player resources when exiting
-            }
-        }
-    }
-}
-
-
-
-struct QuizView: View {
-    let quiz: [QuizQuestion]
-    let videoId: String
-    @State private var currentQuestionIndex = 0
-    @State private var correctAnswers = 0
-    @State private var isQuizCompleted = false
-    @State private var progress: Double = 0.0
-    @State private var userId = Auth.auth().currentUser?.uid
-    @State private var userScore: Int? // Fetch user's stored score from Firestore
-
-    var body: some View {
-        VStack {
-            if isQuizCompleted {
-                Text("Quiz Completed!")
-                    .font(.title)
-                    .foregroundColor(.green)
-                    .padding()
-
-                if let score = userScore {
-                    Text("Your Score: \(score)%") // Display the stored score
-                        .font(.headline)
-                        .padding()
-                } else {
-                    Text("Calculating your score...")
-                        .font(.headline)
-                        .padding()
-                }
-
-                ProgressView(value: 1.0)
-                    .progressViewStyle(LinearProgressViewStyle(tint: .green))
-                    .padding()
-
-                Spacer()
-            } else {
-                VStack {
-                    ProgressView(value: progress)
-                        .progressViewStyle(LinearProgressViewStyle(tint: .blue))
-                        .padding()
-
-                    Text(quiz[currentQuestionIndex].questionText)
-                        .font(.title)
-                        .padding()
-
-                    ForEach(quiz[currentQuestionIndex].options, id: \.self) { option in
-                        Button(action: {
-                            gradeAnswer(selectedOption: option)
-                        }) {
-                            Text(option)
-                                .padding()
-                                .frame(maxWidth: .infinity)
-                                .background(Color.gray.opacity(0.2))
-                                .foregroundColor(.black)
-                                .cornerRadius(8)
-                                .padding(.horizontal)
-                        }
-                    }
-                }
-            }
-        }
-        .navigationTitle("Quiz")
-        .onAppear {
-            checkIfQuizAttempted()
+            .background(Color(.systemGray6))
         }
     }
 
-    private func gradeAnswer(selectedOption: String) {
-        if selectedOption == quiz[currentQuestionIndex].correctAnswer {
-            correctAnswers += 1
-        }
-
-        currentQuestionIndex += 1
-        progress = Double(currentQuestionIndex) / Double(quiz.count)
-
-        if currentQuestionIndex >= quiz.count {
-            completeQuiz()
-        }
-    }
-
-    private func completeQuiz() {
-        isQuizCompleted = true
-
-        guard let userId = userId else { return }
+    func fetchUserPoints() {
+        guard let user = Auth.auth().currentUser else { return }
         let db = Firestore.firestore()
-        let userRef = db.collection("users").document(userId)
-
-        let calculatedScore = (correctAnswers * 100) / quiz.count
-        userScore = calculatedScore // Update local score for immediate display
-
-        userRef.getDocument { document, error in
+        db.collection("users").document(user.uid).getDocument { snapshot, error in
             if let error = error {
-                print("Error fetching user document: \(error.localizedDescription)")
+                print("Error fetching user points: \(error.localizedDescription)")
+                return
+            }
+            
+            guard let data = snapshot?.data(),
+                  let points = data["points"] as? Int else {
+                print("User points not found")
+                return
+            }
+            
+            DispatchQueue.main.async {
+                self.userPoints = points
+            }
+        }
+    }
+
+    func fetchStores() {
+        let db = Firestore.firestore()
+        db.collection("stores").getDocuments { snapshot, error in
+            if let error = error {
+                print("Error fetching stores: \(error.localizedDescription)")
                 return
             }
 
-            if let document = document, document.exists {
-                var completedQuizzes = document.data()?["completedQuizzes"] as? [String: Int] ?? [:]
-                completedQuizzes[videoId] = calculatedScore // Update the score for this quiz
-
-                // Update the number of completed quizzes as progress
-                let progress = completedQuizzes.keys.count
-
-                userRef.updateData([
-                    "completedQuizzes": completedQuizzes,
-                    "progress": progress
-                ]) { error in
-                    if let error = error {
-                        print("Error updating user progress: \(error.localizedDescription)")
-                    } else {
-                        print("User progress updated successfully!")
-                    }
-                }
-            }
-        }
-    }
-
-    private func checkIfQuizAttempted() {
-        guard let userId = userId else { return }
-        let db = Firestore.firestore()
-        let userRef = db.collection("users").document(userId)
-
-        userRef.getDocument { document, error in
-            if let error = error {
-                print("Error fetching user document: \(error.localizedDescription)")
+            guard let documents = snapshot?.documents else {
+                print("No store documents found.")
                 return
             }
 
-            if let document = document, document.exists {
-                let completedQuizzes = document.data()?["completedQuizzes"] as? [String: Int] ?? [:]
-                if let score = completedQuizzes[videoId] {
-                    isQuizCompleted = true
-                    userScore = score // Fetch stored score
+            let fetchedStores: [Store] = documents.compactMap { doc in
+                let data = doc.data()
+                guard let name = data["name"] as? String,
+                      let location = data["location"] as? String,
+                      let mapData = data["map"] as? [String: Any],
+                      let latitude = mapData["latitude"] as? Double,
+                      let longitude = mapData["longitude"] as? Double,
+                      let thumbnailUrl = data["thumbnailUrl"] as? String,
+                      let couponsArray = data["coupons"] as? [[String: Any]] else {
+                    print("Invalid store data for document: \(doc.documentID)")
+                    return nil
                 }
-            }
-        }
-    }
-}
 
+                let coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
 
-
-
-struct QuizQuestion: Identifiable {
-    let id = UUID() // Unique identifier for each question
-    let questionText: String
-    let options: [String]
-    let correctAnswer: String
-}
-
-struct Video: Identifiable {
-    let id: String
-    let title: String
-    let duration: String
-    let videoURL: String
-    let thumbnailURL: String
-    let quiz: [QuizQuestion] // Array of QuizQuestion objects
-}
-
-
-struct VideoCard: View {
-    let video: Video
-
-    var body: some View {
-        VStack(alignment: .leading) {
-            ZStack(alignment: .topLeading) {
-                if let url = URL(string: video.thumbnailURL) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .empty:
-                            Color.gray.opacity(0.2) // Placeholder color
-                                .frame(width: 180, height: 150) // Increased size
-                                .cornerRadius(12)
-                        case .success(let image):
-                            image.resizable()
-                                .scaledToFill()
-                                .frame(width: 180, height: 150) // Increased size
-                                .clipped() // Ensure no overflow
-                                .cornerRadius(12)
-                        case .failure:
-                            Color.red.opacity(0.2) // Error placeholder
-                                .frame(width: 180, height: 150) // Increased size
-                                .cornerRadius(12)
-                        @unknown default:
-                            Color.gray.opacity(0.2)
-                                .frame(width: 180, height: 150) // Increased size
-                                .cornerRadius(12)
-                        }
+                let coupons: [Coupon] = couponsArray.compactMap { couponData in
+                    guard let id = couponData["id"] as? String,
+                          let requiredPoints = couponData["requiredPoints"] as? Int,
+                          let discountAmount = couponData["discountAmount"] as? Double,
+                          let applicableItems = couponData["applicableItems"] as? [String],
+                          let description = couponData["description"] as? String else {
+                        print("Invalid coupon data in store: \(name)")
+                        return nil
                     }
-                } else {
-                    Color.gray.opacity(0.2) // Fallback for invalid URL
-                        .frame(width: 180, height: 150) // Increased size
-                        .cornerRadius(12)
+                    return Coupon(id: id, requiredPoints: requiredPoints, discountAmount: discountAmount, applicableItems: applicableItems, description: description)
                 }
 
-                Text(video.duration)
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                    .padding(5)
-                    .background(Color.green.opacity(0.8))
-                    .cornerRadius(6)
-                    .padding(6)
+                return Store(id: doc.documentID, name: name, location: location, coordinate: coordinate, coupons: coupons, thumbnailUrl: thumbnailUrl)
             }
 
-            Text(video.title)
-                .font(.headline)
-                .lineLimit(1)
-                .padding(.horizontal, 8)
-        }
-        .frame(width: 180) // Increased width for alignment
-        .background(Color.white)
-        .cornerRadius(12)
-        .shadow(color: Color.gray.opacity(0.4), radius: 4, x: 0, y: 2)
-    }
-}
-
-
-
-func addNewVideoWithQuiz() {
-    let db = Firestore.firestore()
-    
-    let videoData: [String: Any] = [
-        "title": "Ocean reafs",
-        "duration": "10:32",
-        "url": "https://example.com/sample-video.mp4", // Replace with actual URL
-        "thumbnailUrl": "https://static.dw.com/image/38934276_605.jpg", // Replace with actual URL
-        "uploadedAt": FieldValue.serverTimestamp(),
-        "quiz": [
-            [
-                "questionText": "What is the capital of France?",
-                "options": ["Paris", "London", "Berlin", "Madrid"],
-                "correctAnswer": "Paris"
-            ],
-            [
-                "questionText": "Which planet is known as the Red Planet?",
-                "options": ["Earth", "Mars", "Jupiter", "Venus"],
-                "correctAnswer": "Mars"
-            ]
-        ]
-    ]
-    
-    db.collection("videos").addDocument(data: videoData) { error in
-        if let error = error {
-            print("Error adding video: \(error.localizedDescription)")
-        } else {
-            print("New video added successfully!")
+            DispatchQueue.main.async {
+                self.stores = fetchedStores
+            }
         }
     }
+
 }
 
-
+struct CategoryBox: View {
+    let imageName: String
+    
+    var body: some View {
+        ZStack {
+            Image(imageName)
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .cornerRadius(10)
+                .clipped()
+        }
+        .frame(height: 165)
+        .cornerRadius(10)
+        .shadow(radius: 5)
+    }
+}

@@ -1,10 +1,3 @@
-//
-//  AppController.swift
-//  ecochicv4
-//
-//  Created by Manuel Teran on 2024-12-27.
-//
-
 import SwiftUI
 import FirebaseAuth
 

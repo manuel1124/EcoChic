@@ -13,98 +13,94 @@ struct HomeView: View {
     let categories = [
         (title: "Eco Shorts", imageName: "Eco Shorts"),
         (title: "Fact or Fiction", imageName: "Fact or Fiction"),
-        (title: "Blitz Round", imageName: "Blitz Round"),
-        (title: "Style Persona", imageName: "Style Persona")
+        (title: "Blitz Round", imageName: "Fact or Fiction"),
+        (title: "Style Persona", imageName: "Eco Shorts")
     ]
-
     var body: some View {
-        NavigationStack { // Replacing NavigationView with NavigationStack
-            VStack(alignment: .leading) {
-                HStack {
-                    Text("Home")
-                        .font(.title)
-                        .bold()
-                        .padding()
-                    
-                    Spacer()
-                    
-                    HStack(spacing: 4) {
-                        Image(systemName: "star.fill")
-                            .foregroundColor(.yellow)
-                        Text("\(userPoints)")
+            NavigationStack {
+                ScrollView(.vertical, showsIndicators: false) { // Make everything scrollable
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack {
+                            Text("Home")
+                                .font(.title)
+                                .bold()
+                                .padding()
+
+                            Spacer()
+
+                            HStack(spacing: 4) {
+                                Image(systemName: "star.fill")
+                                    .foregroundColor(.yellow)
+                                Text("\(userPoints)")
+                                    .font(.headline)
+                                    .bold()
+                                    .foregroundColor(.black)
+                            }
+                            .padding(10)
+                            .cornerRadius(10)
+                        }
+                        .padding([.top, .leading, .trailing])
+
+                        StreakBoxView(streak: streak)
+
+                        Text("Your favourite stores")
                             .font(.headline)
-                            .bold()
-                            .foregroundColor(.black)
-                    }
-                    .padding(10)
-                    .cornerRadius(10)
-                }
-                .padding([.top, .leading, .trailing])
-                
-                StreakBoxView(streak: streak)
-                
-                Text("Your favourite stores")
-                    .font(.headline)
-                    .padding(.leading, 25)
-                
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(stores) { store in
-                            if let url = URL(string: store.thumbnailUrl) {
-                                NavigationLink(destination: StoreDetailView(store: store, userPoints: $userPoints)) {
-                                    AsyncImage(url: url) { image in
-                                        image.resizable()
-                                            .scaledToFill()
-                                            .frame(width: 60, height: 60)
-                                            .clipShape(Circle())
-                                            .overlay(Circle().stroke(Color.clear, lineWidth: 2))
-                                    } placeholder: {
-                                        Circle()
-                                            .fill(Color.gray.opacity(0.2)) // Improved visibility for placeholder
-                                            .frame(width: 60, height: 60)
+                            .padding(.leading, 25)
+
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 12) {
+                                ForEach(stores) { store in
+                                    if let url = URL(string: store.thumbnailUrl) {
+                                        NavigationLink(destination: StoreDetailView(store: store, userPoints: $userPoints)) {
+                                            AsyncImage(url: url) { image in
+                                                image.resizable()
+                                                    .scaledToFill()
+                                                    .frame(width: 60, height: 60)
+                                                    .clipShape(Circle())
+                                                    .overlay(Circle().stroke(Color.clear, lineWidth: 2))
+                                            } placeholder: {
+                                                Circle()
+                                                    .fill(Color.gray.opacity(0.2))
+                                                    .frame(width: 60, height: 60)
+                                            }
+                                        }
                                     }
                                 }
                             }
+                            .padding(.leading, 25)
+                            .padding(.trailing, 10)
                         }
-                    }
-                    .padding(.leading, 25)
-                    .padding(.trailing, 10)
-                }
-                .frame(height: 80)
+                        .frame(height: 80)
 
-                //Spacer()
-                
-                // "Categories" heading
-                Text("Categories")
-                    .font(.headline)
-                    .padding(.leading, 25)
-                
-                // Grid of category boxes
-                LazyVGrid(columns: columns, spacing: 10) {
-                    ForEach(categories, id: \.title) { category in
-                        NavigationLink(destination: LearnView().navigationBarBackButtonHidden(true)) {
-                            CategoryBox(imageName: category.imageName)
+                        Text("Categories")
+                            .font(.headline)
+                            .padding(.leading, 25)
+
+                        LazyVGrid(columns: columns, spacing: 10) {
+                            ForEach(categories, id: \.title) { category in
+                                NavigationLink(destination: LearnView().navigationBarBackButtonHidden(true)) {
+                                    CategoryBox(imageName: category.imageName)
+                                        .frame(height: 165)
+                                }
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+                    .padding(.bottom, 20) // Extra padding at bottom for smooth scrolling
+                }
+                .onAppear {
+                    fetchUserPoints()
+                    fetchStores()
+                    updateUserStreak { updatedStreak in
+                        DispatchQueue.main.async {
+                            self.streak = updatedStreak
                         }
                     }
                 }
-                .padding(.horizontal)
-                
-                .padding(.bottom, 50)
+                .background(Color(.systemGray6))
             }
-            .onAppear {
-                //addNewVideoWithQuiz()
-                fetchUserPoints()
-                fetchStores()
-                updateUserStreak { updatedStreak in
-                    DispatchQueue.main.async {
-                        self.streak = updatedStreak
-                    }
-                }
-            }
-            .background(Color(.systemGray6))
         }
-    }
-
+    
     func fetchUserPoints() {
         guard let user = Auth.auth().currentUser else { return }
         let db = Firestore.firestore()

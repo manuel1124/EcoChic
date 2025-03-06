@@ -1,9 +1,11 @@
 import SwiftUI
 import MapKit
 import FirebaseFirestore
+import CoreLocation
 
 struct DiscoverView: View {
     @State private var stores: [Store] = []
+    @StateObject private var locationManager = LocationManager()
     @State private var position: MapCameraPosition = .region(
         MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: 53.5461, longitude: -113.4938),
@@ -16,6 +18,7 @@ struct DiscoverView: View {
     private let collapsedHeight: CGFloat = 70
     private let expandedHeight: CGFloat = 450
     @State private var selectedStore: Store?
+    @State private var showAlert = false
     
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -96,8 +99,22 @@ struct DiscoverView: View {
                     Text(selectedStore.name)
                         .font(.title)
                         .bold()
-                    Text("📍 Location: \(selectedStore.location)")
+                    Text("Location: \(selectedStore.location)")
                         .font(.subheadline)
+                    
+                    Button(action: {
+                        openMaps(for: selectedStore)
+                    }) {
+                        HStack {
+                            Image(systemName: "map.fill")
+                            Text("Get Directions")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                    }
                     
                     Text("Available Coupons:")
                         .font(.headline)
@@ -107,7 +124,7 @@ struct DiscoverView: View {
                         VStack(alignment: .leading) {
                             Text("\(coupon.description)")
                                 .font(.subheadline)
-                            Text("🎟 Requires: \(coupon.requiredPoints) points")
+                            Text("Requires: \(coupon.requiredPoints) points")
                                 .font(.footnote)
                                 .foregroundColor(.gray)
                         }
@@ -129,7 +146,33 @@ struct DiscoverView: View {
             fetchStores { fetchedStores in
                 self.stores = fetchedStores
             }
+            
+            if let userLocation = locationManager.userLocation {
+                position = .region(MKCoordinateRegion(
+                    center: userLocation,
+                    span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+                ))
+            }
         }
+        .onReceive(locationManager.$userLocation) { userLocation in
+            if let userLocation = userLocation {
+                position = .region(MKCoordinateRegion(
+                    center: userLocation,
+                    span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+                ))
+            }
+        }
+        .alert("Location Access Needed", isPresented: $showAlert) {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Please enable location services in Settings to see stores near you.")
+            }
+    
     }
     
     private func selectStore(_ store: Store) {
@@ -162,6 +205,52 @@ struct DiscoverView: View {
             isExpanded = false
             sheetHeight = expandedHeight // Restore the thrift store slider
             selectedStore = nil
+        }
+    }
+    
+    private func openMaps(for store: Store) {
+        let latitude = store.coordinate.latitude
+        let longitude = store.coordinate.longitude
+        if let url = URL(string: "http://maps.apple.com/?daddr=\(latitude),\(longitude)") {
+            UIApplication.shared.open(url)
+        }
+    }
+}
+
+class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
+    private var locationManager = CLLocationManager()
+    
+    @Published var userLocation: CLLocationCoordinate2D?
+    @Published var authorizationStatus: CLAuthorizationStatus = .notDetermined
+
+    override init() {
+        super.init()
+        locationManager.delegate = self
+        requestPermission()
+    }
+    
+    func requestPermission() {
+        authorizationStatus = locationManager.authorizationStatus
+        if authorizationStatus == .notDetermined {
+            locationManager.requestWhenInUseAuthorization()
+        } else if authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways {
+            locationManager.startUpdatingLocation()
+        }
+    }
+    
+    func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
+        DispatchQueue.main.async {
+            self.authorizationStatus = status
+            if status == .authorizedWhenInUse || status == .authorizedAlways {
+                self.locationManager.startUpdatingLocation()
+            }
+        }
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let location = locations.last else { return }
+        DispatchQueue.main.async {
+            self.userLocation = location.coordinate
         }
     }
 }

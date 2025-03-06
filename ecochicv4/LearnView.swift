@@ -263,33 +263,3 @@ struct VideoRow: View {
         }
     }
 }
-
-func addNewStoreWithCoupons() {
-    let db = Firestore.firestore()
-    
-    let storeData: [String: Any] = [
-        "name": "Patagonia",
-        "location": "Edmonton, AB",
-        "coupons": [
-            [
-                "requiredPoints": 50,
-                "discountAmount": 0.2, // 20% off
-                "applicableItems": ["Shirts", "Jackets"],
-                "description": "Get 20% off any shirt or jacket!"
-            ]
-        ],
-        "map": [
-            "latitude": 53.5464,
-            "longitude": -113.5231
-        ],
-        "thumbnailUrl": "https://wallpapers.com/images/hd/patagonia-logo-background-hf8e8q261zgmad5s.jpg"
-    ]
-    
-    db.collection("stores").addDocument(data: storeData) { error in
-        if let error = error {
-            print("Error adding store: \(error.localizedDescription)")
-        } else {
-            print("New store added successfully!")
-        }
-    }
-}

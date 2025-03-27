@@ -16,9 +16,10 @@ struct Store: Identifiable {
     var id: String
     var name: String
     var location: String
-    var coordinate: CLLocationCoordinate2D
+    let coordinate: CLLocationCoordinate2D?
     var coupons: [Coupon]
-    var thumbnailUrl: String // Add this field
+    var about: String
+    var thumbnailUrl: String
 }
 
 struct StoreView: View {
@@ -138,7 +139,6 @@ struct StoreRow: View {
 }
 
 
-
 func fetchStores(completion: @escaping ([Store]) -> Void) {
     let db = Firestore.firestore()
     db.collection("stores").getDocuments { snapshot, error in
@@ -161,16 +161,22 @@ func fetchStores(completion: @escaping ([Store]) -> Void) {
             
             guard let name = data["name"] as? String,
                   let location = data["location"] as? String,
-                  let mapData = data["map"] as? [String: Any],
-                  let latitude = mapData["latitude"] as? Double,
-                  let longitude = mapData["longitude"] as? Double,
-                  let thumbnailUrl = data["thumbnailUrl"] as? String, // Extract thumbnail
+                  let thumbnailUrl = data["thumbnailUrl"] as? String,
+                  let about = data["about"] as? String,
                   let couponsArray = data["coupons"] as? [[String: Any]] else {
                 print("Skipping document due to missing fields")
                 return nil
             }
             
-            let coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+            // Handle optional map data
+            let coordinate: CLLocationCoordinate2D? // ✅ Make it optional
+            if let mapData = data["map"] as? [String: Any],
+               let latitude = mapData["latitude"] as? Double,
+               let longitude = mapData["longitude"] as? Double {
+                coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+            } else {
+                coordinate = nil
+            }
             
             let coupons = couponsArray.compactMap { couponData -> Coupon? in
                 guard let id = couponData["id"] as? String,
@@ -185,9 +191,9 @@ func fetchStores(completion: @escaping ([Store]) -> Void) {
                 return Coupon(id: id, requiredPoints: requiredPoints, discountAmount: discountAmount, applicableItems: applicableItems, description: description)
             }
             
-            print("Adding store: \(name) at \(latitude), \(longitude)")
+            print("Adding store: \(name), coordinate: \(coordinate != nil ? "Yes" : "No")")
             
-            return Store(id: doc.documentID, name: name, location: location, coordinate: coordinate, coupons: coupons, thumbnailUrl: thumbnailUrl)
+            return Store(id: doc.documentID, name: name, location: location, coordinate: coordinate, coupons: coupons, about: about, thumbnailUrl: thumbnailUrl)
         }
         
         print("Final store count: \(stores.count)")

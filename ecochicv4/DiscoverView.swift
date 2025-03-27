@@ -12,23 +12,51 @@ struct DiscoverView: View {
             span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
         )
     )
-    
+
     @State private var isExpanded = false
     @State private var sheetHeight: CGFloat = 70
-    private let collapsedHeight: CGFloat = 70
-    private let expandedHeight: CGFloat = 450
+    private let collapsedHeight: CGFloat = 75
+    private let expandedHeight: CGFloat = 490
     @State private var selectedStore: Store?
     @State private var showAlert = false
-    
+    @State private var userHasInteracted = false
+    @State private var wasSheetExpandedBeforeSelection = false
+
     var body: some View {
         ZStack(alignment: .bottom) {
             Map(position: $position) {
+                if let userLocation = locationManager.userLocation {
+                    Annotation("You", coordinate: userLocation) {
+                        Button(action: {
+                            snapToLocation(userLocation)
+                        }) {
+                            Image(systemName: "mappin.circle.fill")
+                                .foregroundColor(.blue)
+                                .font(.largeTitle)
+                        }
+                    }
+                }
+
                 ForEach(stores) { store in
-                    Marker(store.name, coordinate: store.coordinate)
+                    if let coordinate = store.coordinate { // ✅ Only add annotation if coordinate is not nil
+                        Annotation(store.name, coordinate: coordinate) {
+                            Button(action: {
+                                wasSheetExpandedBeforeSelection = isExpanded
+                                selectStore(store)
+                            }) {
+                                Image(systemName: "mappin.circle.fill")
+                                    .foregroundColor(.red)
+                                    .font(.largeTitle)
+                            }
+                        }
+                    }
                 }
             }
             .edgesIgnoringSafeArea(.all)
-            
+            .onMapCameraChange { _ in
+                userHasInteracted = true
+            }
+
             if selectedStore == nil {
                 VStack(alignment: .leading) {
                     Capsule()
@@ -40,35 +68,39 @@ struct DiscoverView: View {
                         .onTapGesture {
                             toggleSheet()
                         }
-                    
+
                     Text("Thrift Stores")
                         .font(.system(size: 20, weight: .bold))
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 16)
                         .padding(.bottom, 4)
-                    
+
                     List(stores) { store in
                         Button(action: {
+                            wasSheetExpandedBeforeSelection = isExpanded
                             selectStore(store)
                         }) {
                             StoreRow(store: store)
-                                .frame(maxWidth: .infinity) // Ensure it takes full width
+                                .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(PlainButtonStyle())
-                        .listRowInsets(EdgeInsets()) // Remove default insets
+                        .listRowInsets(EdgeInsets())
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                         .padding(.vertical, 10)
                         .padding(.horizontal, 16)
                     }
-                    .listStyle(PlainListStyle()) // Make it behave more like ScrollView
-                    .scrollContentBackground(.hidden) // Remove default background
-                    //.padding()
+                    .listStyle(PlainListStyle())
+                    .scrollContentBackground(.hidden)
+
+                    // This ensures the sheet extends fully
+                    Spacer()
                 }
-                .frame(height: sheetHeight)
+                .frame(maxHeight: isExpanded ? expandedHeight : collapsedHeight)
                 .background(Color(.systemGray6))
                 .cornerRadius(16)
                 .shadow(radius: 5)
+                .ignoresSafeArea(edges: .bottom)
                 .gesture(
                     DragGesture()
                         .onEnded { value in
@@ -80,11 +112,11 @@ struct DiscoverView: View {
                         }
                 )
             }
-            
+
             if let selectedStore = selectedStore {
                 VStack(alignment: .leading, spacing: 8) {
                     Button(action: {
-                        collapseSheet()
+                        closeStoreDetails()
                     }) {
                         HStack {
                             Image(systemName: "arrow.left.circle.fill")
@@ -95,31 +127,34 @@ struct DiscoverView: View {
                         }
                         .padding(.top, 10)
                     }
-                    
+
                     Text(selectedStore.name)
                         .font(.title)
                         .bold()
                     Text("Location: \(selectedStore.location)")
                         .font(.subheadline)
-                    
-                    Button(action: {
-                        openMaps(for: selectedStore)
-                    }) {
-                        HStack {
-                            Image(systemName: "map.fill")
-                            Text("Get Directions")
+
+                    // Only show 'Get Directions' if the store has coordinates
+                    if let coordinate = selectedStore.coordinate {
+                        Button(action: {
+                            openMaps(for: selectedStore)
+                        }) {
+                            HStack {
+                                Image(systemName: "map.fill")
+                                Text("Get Directions")
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
                     }
-                    
+
                     Text("Available Coupons:")
                         .font(.headline)
                         .padding(.top, 8)
-                    
+
                     ForEach(selectedStore.coupons) { coupon in
                         VStack(alignment: .leading) {
                             Text("\(coupon.description)")
@@ -141,12 +176,13 @@ struct DiscoverView: View {
                 .shadow(radius: 5)
                 .transition(.move(edge: .bottom))
             }
+            
         }
         .onAppear {
             fetchStores { fetchedStores in
                 self.stores = fetchedStores
             }
-            
+
             if let userLocation = locationManager.userLocation {
                 position = .region(MKCoordinateRegion(
                     center: userLocation,
@@ -155,7 +191,7 @@ struct DiscoverView: View {
             }
         }
         .onReceive(locationManager.$userLocation) { userLocation in
-            if let userLocation = userLocation {
+            if let userLocation = userLocation, !userHasInteracted {
                 position = .region(MKCoordinateRegion(
                     center: userLocation,
                     span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
@@ -163,56 +199,77 @@ struct DiscoverView: View {
             }
         }
         .alert("Location Access Needed", isPresented: $showAlert) {
-                Button("Open Settings") {
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        UIApplication.shared.open(url)
-                    }
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
                 }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("Please enable location services in Settings to see stores near you.")
             }
-    
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Please enable location services in Settings to see stores near you.")
+        }
     }
-    
+
     private func selectStore(_ store: Store) {
         withAnimation {
             selectedStore = store
-            position = .region(MKCoordinateRegion(
-                center: store.coordinate,
-                span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
-            ))
-            sheetHeight = 0 // Hide the thrift store slider when selecting a store
+            if let coordinate = store.coordinate {
+                position = .region(MKCoordinateRegion(
+                    center: coordinate,
+                    span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
+                ))
+            }
+            sheetHeight = 0
         }
     }
-    
+
+    private func closeStoreDetails() {
+        withAnimation {
+            selectedStore = nil
+            sheetHeight = wasSheetExpandedBeforeSelection ? expandedHeight : collapsedHeight
+        }
+    }
+    private func snapToLocation(_ coordinate: CLLocationCoordinate2D) {
+        withAnimation {
+            position = .region(MKCoordinateRegion(
+                center: coordinate,
+                span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
+            ))
+        }
+    }
+
     private func toggleSheet() {
         withAnimation {
             isExpanded.toggle()
             sheetHeight = isExpanded ? expandedHeight : collapsedHeight
         }
     }
-    
+
     private func expandSheet() {
         withAnimation {
             isExpanded = true
             sheetHeight = expandedHeight
         }
     }
-    
+
     private func collapseSheet() {
         withAnimation {
             isExpanded = false
-            sheetHeight = expandedHeight // Restore the thrift store slider
-            selectedStore = nil
+            sheetHeight = collapsedHeight
         }
     }
-    
+
     private func openMaps(for store: Store) {
-        let latitude = store.coordinate.latitude
-        let longitude = store.coordinate.longitude
-        if let url = URL(string: "http://maps.apple.com/?daddr=\(latitude),\(longitude)") {
-            UIApplication.shared.open(url)
+        // Safely unwrap the coordinate
+        if let coordinate = store.coordinate {
+            let latitude = coordinate.latitude
+            let longitude = coordinate.longitude
+            if let url = URL(string: "http://maps.apple.com/?daddr=\(latitude),\(longitude)") {
+                UIApplication.shared.open(url)
+            }
+        } else {
+            // Handle case where coordinate is nil (if needed)
+            print("Store does not have coordinates.")
         }
     }
 }

@@ -79,7 +79,7 @@ struct StoreDetailView: View {
     @ViewBuilder
     private func AboutSection() -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Risus pulvinar fringilla velit dui adipiscing libero.")
+            Text(store.about.isEmpty ? "No description available." : store.about)
                 .font(.body)
                 .padding()
         }

@@ -25,66 +25,79 @@ struct Video: Identifiable {
 struct LearnView: View {
     @Environment(\.presentationMode) var presentationMode
     @State private var videos: [Video] = []
-    @State private var userPoints: Int = 0  // State to store user's points
+    @State private var userPoints: Int = 0
 
     var body: some View {
         NavigationView {
-            VStack {
-                // Top row with title and user points
-                HStack {
-                    Text("Eco Shorts")  // Title changed to Eco Shorts
-                        .font(.title)
-                        .padding()
-                        .bold()
-                    
-                    Spacer()
-                    
-                    HStack(spacing: 4) {
-                        Image(systemName: "star.fill")
-                            .foregroundColor(.yellow)
-                        Text("\(userPoints)")
-                            .font(.headline)
+            ZStack {
+                VStack {
+                    // Header with title and points
+                    HStack(alignment: .top) {
+                        Text("Eco Shorts")
+                            .font(.title)
                             .bold()
-                            .foregroundColor(.black)
-                    }
-                    .padding(10)
-                    .cornerRadius(10)
-                }
-                .padding([.top, .leading, .trailing])  // Padding for the top row
 
-                // ScrollView for videos
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: 16) {
-                        ForEach(videos) { video in
-                            NavigationLink(destination: VideoPlayerView(video: video)) {
-                                VideoRow(video: video)
-                            }
+                        Spacer()
+
+                        HStack(spacing: 4) {
+                            Image(systemName: "star.fill")
+                                .foregroundColor(.yellow)
+                            Text("\(userPoints)")
+                                .font(.headline)
+                                .bold()
+                                .foregroundColor(.black)
                         }
                     }
-                    .padding()
-                    //.background(Color.blue.opacity(0.1))
-                    
-                }
-            
-                HStack {
-                    Button(action: {
-                        presentationMode.wrappedValue.dismiss()
-                    }) {
-                        Image(systemName: "arrow.left")
-                            .font(.title) // Adjust size if needed
-                            .foregroundColor(.gray)
-                            .padding(.leading, 40) // Moves it slightly to the right
-                            .padding(.vertical, 20) // Adds vertical padding for better touch area
+                    .padding([.top, .leading, .trailing])
+
+                    // Scrollable content (list of videos)
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(spacing: 16) {
+                            ForEach(videos) { video in
+                                NavigationLink(destination: VideoPlayerView(video: video)) {
+                                    VideoRow(video: video)
+                                }
+                            }
+                        }
+                        .padding()
                     }
-                    Spacer() // Keeps it left-aligned without sticking to the edge
+                    .simultaneousGesture(DragGesture().onEnded { gesture in
+                        if gesture.translation.width > 50 { // Detect right swipe
+                            presentationMode.wrappedValue.dismiss()
+                        }
+                    }) // Allows both scrolling and swipe gestures
+                    
+                    Spacer() // Pushes footer to the bottom
+                    
+                    HStack {
+                        Button(action: {
+                            presentationMode.wrappedValue.dismiss()
+                        }) {
+                            Image(systemName: "arrow.left")
+                                .font(.title)
+                                .foregroundColor(.gray)
+                                .padding(.leading, 40)
+                                .padding(.bottom, 20) // Moves the arrow UP
+                        }
+                        Spacer()
+                    }
+                    .frame(maxHeight: 50) // Allows movement without restricting too much
+                    .padding(.bottom, 10) // Moves the entire HStack lower
+                    .background(.clear)
                 }
-                .background(Color(.systemGray6)) // Matches the background
+                .toolbar(.hidden, for: .tabBar)
+                .onAppear {
+                    fetchVideos()
+                    fetchUserPoints()  // Fetch user points when the view appears
+                }
+                .background(Color(.systemGray6))
             }
-            .toolbar(.hidden, for: .tabBar)
-            .onAppear {
-                fetchVideos()
-                fetchUserPoints()  // Fetch user points when the view appears
-            }.background(Color(.systemGray6))
+            .ignoresSafeArea(edges: .bottom)
+            .simultaneousGesture(DragGesture().onEnded { gesture in
+                if gesture.translation.width > 50 { // Detect right swipe
+                    presentationMode.wrappedValue.dismiss()
+                }
+            })
         }
     }
     

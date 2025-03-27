@@ -129,14 +129,16 @@ struct VideoPlayerView: View {
                 presentationMode.wrappedValue.dismiss()
             }) {
                 Image(systemName: "arrow.left")
-                    .font(.title) // Adjust size if needed
+                    .font(.title)
                     .foregroundColor(.gray)
-                    .padding(.leading, 40) // Moves it slightly to the right
-                    .padding(.vertical, 20) // Adds vertical padding for better touch area
+                    .padding(.leading, 40)
+                    .padding(.bottom, 10) // Moves the arrow UP
             }
-            Spacer() // Keeps it left-aligned without sticking to the edge
+            Spacer()
         }
-        .background(Color(.systemGray6)) // Matches the background
+        .frame(maxHeight: 50) // Allows movement without restricting too much
+        .padding(.bottom, 10) // Moves the entire HStack lower
+        .background(.clear)
     }
 
     private func checkIfQuizAttempted() {

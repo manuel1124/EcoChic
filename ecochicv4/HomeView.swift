@@ -13,8 +13,10 @@ struct HomeView: View {
     let categories = [
         (title: "Eco Shorts", imageName: "Eco Shorts"),
         (title: "Fact or Fiction", imageName: "Fact or Fiction"),
-        (title: "Blitz Round", imageName: "Fact or Fiction"),
-        (title: "Style Persona", imageName: "Eco Shorts")
+        (title: "Blitz Round", imageName: "Blitz Round"),
+        (title: "Green Choices", imageName: "Green Choices"),
+        (title: "Tag Check", imageName: "Tag Check"),
+        (title: "Style Persona", imageName: "Style Persona")
     ]
     var body: some View {
             NavigationStack {
@@ -76,11 +78,11 @@ struct HomeView: View {
                             .font(.headline)
                             .padding(.leading, 25)
 
-                        LazyVGrid(columns: columns, spacing: 10) {
+                        LazyVGrid(columns: columns, spacing: 0) {
                             ForEach(categories, id: \.title) { category in
                                 NavigationLink(destination: LearnView().navigationBarBackButtonHidden(true)) {
                                     CategoryBox(imageName: category.imageName)
-                                        .frame(height: 165)
+                                        //.frame(height: 180)
                                 }
                             }
                         }
@@ -90,6 +92,7 @@ struct HomeView: View {
                 }
                 .onAppear {
                     fetchUserPoints()
+                    //addNewStoreWithCoupons()
                     fetchStores()
                     updateUserStreak { updatedStreak in
                         DispatchQueue.main.async {
@@ -137,18 +140,23 @@ struct HomeView: View {
 
             let fetchedStores: [Store] = documents.compactMap { doc in
                 let data = doc.data()
+
                 guard let name = data["name"] as? String,
                       let location = data["location"] as? String,
-                      let mapData = data["map"] as? [String: Any],
-                      let latitude = mapData["latitude"] as? Double,
-                      let longitude = mapData["longitude"] as? Double,
+                      let about = data["about"] as? String,
                       let thumbnailUrl = data["thumbnailUrl"] as? String,
                       let couponsArray = data["coupons"] as? [[String: Any]] else {
                     print("Invalid store data for document: \(doc.documentID)")
                     return nil
                 }
 
-                let coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+                // Safely handle optional map data for coordinates
+                var coordinate: CLLocationCoordinate2D? = nil
+                if let mapData = data["map"] as? [String: Any],
+                   let latitude = mapData["latitude"] as? Double,
+                   let longitude = mapData["longitude"] as? Double {
+                    coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+                }
 
                 let coupons: [Coupon] = couponsArray.compactMap { couponData in
                     guard let id = couponData["id"] as? String,
@@ -162,7 +170,8 @@ struct HomeView: View {
                     return Coupon(id: id, requiredPoints: requiredPoints, discountAmount: discountAmount, applicableItems: applicableItems, description: description)
                 }
 
-                return Store(id: doc.documentID, name: name, location: location, coordinate: coordinate, coupons: coupons, thumbnailUrl: thumbnailUrl)
+                // Return the Store object, passing nil for coordinate if it's unavailable
+                return Store(id: doc.documentID, name: name, location: location, coordinate: coordinate, coupons: coupons, about: about, thumbnailUrl: thumbnailUrl)
             }
 
             DispatchQueue.main.async {
@@ -178,7 +187,7 @@ struct StreakBoxView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("\(streak) Days Streak")
+            Text("\(streak) Day Streak")
                 .font(.headline)
                 .bold()
 
@@ -220,9 +229,9 @@ struct CategoryBox: View {
                 .cornerRadius(10)
                 .clipped()
         }
-        .frame(height: 165)
+        .frame(height: 195)
         .cornerRadius(10)
-        .shadow(radius: 5)
+        .shadow(radius: 2)
     }
 }
 
@@ -284,21 +293,19 @@ func addNewStoreWithCoupons() {
     let db = Firestore.firestore()
     
     let storeData: [String: Any] = [
-        "name": "Patagonia",
+        "name": "Last Call",
+        "about": "At LastCall, our mission is to redefine fashion through sustainability and affordability. We curate quality secondhand pieces, empowering individuals to express their unique style while reducing their environmental footprint. Through ethical practices and community engagement, we strive to inspire conscious consumption and foster a more eco-conscious fashion culture.",
         "location": "Edmonton, AB",
         "coupons": [
             [
-                "requiredPoints": 50,
-                "discountAmount": 0.2, // 20% off
+                "requiredPoints": 7500,
+                "discountAmount": 0.05, // 20% off
                 "applicableItems": ["Shirts", "Jackets"],
-                "description": "Get 20% off any shirt or jacket!"
+                "description": "Get 5% off any shirt or jacket!",
+                "id": "lastcall_coupon1"
             ]
         ],
-        "map": [
-            "latitude": 53.5464,
-            "longitude": -113.5231
-        ],
-        "thumbnailUrl": "https://wallpapers.com/images/hd/patagonia-logo-background-hf8e8q261zgmad5s.jpg"
+        "thumbnailUrl": "https://cdn.shopify.com/s/files/1/0639/1273/9016/files/image0_1_200x60@2x.jpg?v=1728076027.webp"
     ]
     
     db.collection("stores").addDocument(data: storeData) { error in

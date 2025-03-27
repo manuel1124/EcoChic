@@ -119,8 +119,17 @@ struct SignInView: View {
                     .padding()
                     .background(Color.gray.opacity(0.1))
                     .cornerRadius(10)
-                Button("Send Reset Link") {
-                    resetPassword()
+                
+                VStack {
+                    Button("Cancel", role: .cancel) {
+                        showResetPasswordAlert = false
+                    }
+                    .fontWeight(.regular)
+                    
+                    Button("Send Reset Link") {
+                        resetPassword()
+                    }
+                    .fontWeight(.regular)
                 }
             }
         }

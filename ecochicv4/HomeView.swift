@@ -80,9 +80,8 @@ struct HomeView: View {
 
                         LazyVGrid(columns: columns, spacing: 0) {
                             ForEach(categories, id: \.title) { category in
-                                NavigationLink(destination: LearnView().navigationBarBackButtonHidden(true)) {
+                                NavigationLink(destination: category.title == "Eco Shorts" ? AnyView(LearnView().navigationBarBackButtonHidden(true)) : AnyView(ComingSoonView())) {
                                     CategoryBox(imageName: category.imageName)
-                                        //.frame(height: 180)
                                 }
                             }
                         }
@@ -361,3 +360,17 @@ func addNewVideoWithQuiz() {
     }
 }
 
+struct ComingSoonView: View {
+    var body: some View {
+        VStack {
+            Spacer()
+            Text("Coming Soon")
+                .font(.title)
+                .bold()
+                .foregroundColor(.gray)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.white)
+    }
+}

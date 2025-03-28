@@ -22,9 +22,9 @@ struct DiscoverView: View {
     @State private var userHasInteracted = false
     @State private var wasSheetExpandedBeforeSelection = false
     @State private var searchText = ""
-    @State private var selectedCategory: String? = nil
+    @State private var selectedCategory: String? = "Stores"
     
-    let categories = ["Events", "Recycling", "Donations", "Stores"]
+    let categories = ["Stores", "Events", "Recycling", "Donations"]
 
     var body: some View {
         
@@ -44,7 +44,7 @@ struct DiscoverView: View {
                 }
                 
                 ForEach(stores) { store in
-                    if let coordinate = store.coordinate { // ✅ Only add annotation if coordinate is not nil
+                    if let coordinate = store.coordinate {
                         Annotation(store.name, coordinate: coordinate) {
                             Button(action: {
                                 wasSheetExpandedBeforeSelection = isExpanded
@@ -65,23 +65,23 @@ struct DiscoverView: View {
             
             VStack {
                 HStack {
-                        HStack {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundColor(.gray)
-                                .padding(.leading, 8)
-
-                            TextField("Search", text: $searchText)
-                                .foregroundColor(.black)
-                                .padding(8)
-                        }
-                        .background(Color.white)
-                        .cornerRadius(10)
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.gray)
+                            .padding(.leading, 8)
+                        
+                        TextField("Search", text: $searchText)
+                            .foregroundColor(.black)
+                            .padding(8)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.clear) // Transparent background
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .padding(.top, 10) // Moves it closer to the top
+                    .background(Color.white)
+                    .cornerRadius(10)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.clear) // Transparent background
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding(.top, 10) // Moves it closer to the top
                 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack {
@@ -103,8 +103,10 @@ struct DiscoverView: View {
                 Spacer() // Pushes everything up
             }
             .padding(.horizontal, 16) // Adds padding on the sides
-                
-                //Spacer() // Pushes the search bar to the top
+            
+            //Spacer() // Pushes the search bar to the top
+            
+            if selectedCategory == "Stores" {
                 
                 if selectedStore == nil {
                     VStack(alignment: .leading) {
@@ -225,9 +227,131 @@ struct DiscoverView: View {
                     .shadow(radius: 5)
                     .transition(.move(edge: .bottom))
                 }
+            } else if selectedCategory == "Events" {
+                VStack(alignment: .leading) {
+                    Capsule()
+                        .frame(width: 50, height: 5)
+                        .foregroundColor(.gray.opacity(0.7))
+                        .padding(.top, 24)
+                        .padding(.bottom, 4)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .onTapGesture {
+                            toggleSheet()
+                        }
+                    
+                    Text("Events")
+                        .font(.system(size: 20, weight: .bold))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 4)
+                    
+                    //Spacer()
+                    
+                    Text("Coming Soon")
+                                .font(.title2)
+                                .foregroundColor(.gray)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                            
+                    Spacer()
+                }
+                .frame(maxHeight: isExpanded ? expandedHeight : collapsedHeight)
+                .background(Color(.systemGray6))
+                .cornerRadius(16)
+                .shadow(radius: 5)
+                .ignoresSafeArea(edges: .bottom)
+                .gesture(
+                    DragGesture()
+                        .onEnded { value in
+                            if value.translation.height < -50 {
+                                expandSheet()
+                            } else if value.translation.height > 50 {
+                                collapseSheet()
+                            }
+                        }
+                )
+            } else if selectedCategory == "Recycling" {
+                VStack(alignment: .leading) {
+                    Capsule()
+                        .frame(width: 50, height: 5)
+                        .foregroundColor(.gray.opacity(0.7))
+                        .padding(.top, 24)
+                        .padding(.bottom, 4)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .onTapGesture {
+                            toggleSheet()
+                        }
+                    
+                    Text("Recycling")
+                        .font(.system(size: 20, weight: .bold))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 4)
+                    
+                    Text("Coming Soon")
+                                .font(.title2)
+                                .foregroundColor(.gray)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                            
+                    Spacer()
+                }
+                .frame(maxHeight: isExpanded ? expandedHeight : collapsedHeight)
+                .background(Color(.systemGray6))
+                .cornerRadius(16)
+                .shadow(radius: 5)
+                .ignoresSafeArea(edges: .bottom)
+                .gesture(
+                    DragGesture()
+                        .onEnded { value in
+                            if value.translation.height < -50 {
+                                expandSheet()
+                            } else if value.translation.height > 50 {
+                                collapseSheet()
+                            }
+                        }
+                )
+            } else if selectedCategory == "Donations" {
+                VStack(alignment: .leading) {
+                    Capsule()
+                        .frame(width: 50, height: 5)
+                        .foregroundColor(.gray.opacity(0.7))
+                        .padding(.top, 24)
+                        .padding(.bottom, 4)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .onTapGesture {
+                            toggleSheet()
+                        }
+                    
+                    Text("Donations")
+                        .font(.system(size: 20, weight: .bold))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 4)
+                    
+                    Text("Coming Soon")
+                                .font(.title2)
+                                .foregroundColor(.gray)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                            
+                    Spacer()
+                }
+                .frame(maxHeight: isExpanded ? expandedHeight : collapsedHeight)
+                .background(Color(.systemGray6))
+                .cornerRadius(16)
+                .shadow(radius: 5)
+                .ignoresSafeArea(edges: .bottom)
+                .gesture(
+                    DragGesture()
+                        .onEnded { value in
+                            if value.translation.height < -50 {
+                                expandSheet()
+                            } else if value.translation.height > 50 {
+                                collapseSheet()
+                            }
+                        }
+                )
                 
             }
-            .onAppear {
+        } .onAppear {
                 fetchStores { fetchedStores in
                     self.stores = fetchedStores
                 }

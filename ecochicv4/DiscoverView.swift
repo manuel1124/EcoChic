@@ -21,9 +21,15 @@ struct DiscoverView: View {
     @State private var showAlert = false
     @State private var userHasInteracted = false
     @State private var wasSheetExpandedBeforeSelection = false
+    @State private var searchText = ""
+    @State private var selectedCategory: String? = nil
+    
+    let categories = ["Events", "Recycling", "Donations", "Stores"]
 
     var body: some View {
+        
         ZStack(alignment: .bottom) {
+            
             Map(position: $position) {
                 if let userLocation = locationManager.userLocation {
                     Annotation("You", coordinate: userLocation) {
@@ -36,7 +42,7 @@ struct DiscoverView: View {
                         }
                     }
                 }
-
+                
                 ForEach(stores) { store in
                     if let coordinate = store.coordinate { // ✅ Only add annotation if coordinate is not nil
                         Annotation(store.name, coordinate: coordinate) {
@@ -56,159 +62,202 @@ struct DiscoverView: View {
             .onMapCameraChange { _ in
                 userHasInteracted = true
             }
-
-            if selectedStore == nil {
-                VStack(alignment: .leading) {
-                    Capsule()
-                        .frame(width: 50, height: 5)
-                        .foregroundColor(.gray.opacity(0.7))
-                        .padding(.top, 24)
-                        .padding(.bottom, 4)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .onTapGesture {
-                            toggleSheet()
-                        }
-
-                    Text("Thrift Stores")
-                        .font(.system(size: 20, weight: .bold))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 4)
-
-                    List(stores) { store in
-                        Button(action: {
-                            wasSheetExpandedBeforeSelection = isExpanded
-                            selectStore(store)
-                        }) {
-                            StoreRow(store: store)
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        .listRowInsets(EdgeInsets())
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .padding(.vertical, 10)
-                        .padding(.horizontal, 16)
-                    }
-                    .listStyle(PlainListStyle())
-                    .scrollContentBackground(.hidden)
-
-                    // This ensures the sheet extends fully
-                    Spacer()
-                }
-                .frame(maxHeight: isExpanded ? expandedHeight : collapsedHeight)
-                .background(Color(.systemGray6))
-                .cornerRadius(16)
-                .shadow(radius: 5)
-                .ignoresSafeArea(edges: .bottom)
-                .gesture(
-                    DragGesture()
-                        .onEnded { value in
-                            if value.translation.height < -50 {
-                                expandSheet()
-                            } else if value.translation.height > 50 {
-                                collapseSheet()
-                            }
-                        }
-                )
-            }
-
-            if let selectedStore = selectedStore {
-                VStack(alignment: .leading, spacing: 8) {
-                    Button(action: {
-                        closeStoreDetails()
-                    }) {
+            
+            VStack {
+                HStack {
                         HStack {
-                            Image(systemName: "arrow.left.circle.fill")
-                                .foregroundColor(.blue)
-                            Text("Back")
-                                .foregroundColor(.blue)
-                                .font(.headline)
-                        }
-                        .padding(.top, 10)
-                    }
-
-                    Text(selectedStore.name)
-                        .font(.title)
-                        .bold()
-                    Text("Location: \(selectedStore.location)")
-                        .font(.subheadline)
-
-                    // Only show 'Get Directions' if the store has coordinates
-                    if let coordinate = selectedStore.coordinate {
-                        Button(action: {
-                            openMaps(for: selectedStore)
-                        }) {
-                            HStack {
-                                Image(systemName: "map.fill")
-                                Text("Get Directions")
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
-                        }
-                    }
-
-                    Text("Available Coupons:")
-                        .font(.headline)
-                        .padding(.top, 8)
-
-                    ForEach(selectedStore.coupons) { coupon in
-                        VStack(alignment: .leading) {
-                            Text("\(coupon.description)")
-                                .font(.subheadline)
-                            Text("Requires: \(coupon.requiredPoints) points")
-                                .font(.footnote)
+                            Image(systemName: "magnifyingglass")
                                 .foregroundColor(.gray)
+                                .padding(.leading, 8)
+
+                            TextField("Search", text: $searchText)
+                                .foregroundColor(.black)
+                                .padding(8)
                         }
-                        .padding()
                         .background(Color.white)
                         .cornerRadius(10)
-                        .shadow(radius: 2)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.clear) // Transparent background
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .padding(.top, 10) // Moves it closer to the top
+                
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack {
+                        ForEach(categories, id: \.self) { category in
+                            Button(action: {
+                                selectedCategory = category
+                            }) {
+                                Text(category)
+                                    .padding(8)
+                                    .background(selectedCategory == category ? Color.blue : Color.white)
+                                    .foregroundColor(selectedCategory == category ? .white : .black)
+                                    .cornerRadius(8)
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+                
+                Spacer() // Pushes everything up
+            }
+            .padding(.horizontal, 16) // Adds padding on the sides
+                
+                //Spacer() // Pushes the search bar to the top
+                
+                if selectedStore == nil {
+                    VStack(alignment: .leading) {
+                        Capsule()
+                            .frame(width: 50, height: 5)
+                            .foregroundColor(.gray.opacity(0.7))
+                            .padding(.top, 24)
+                            .padding(.bottom, 4)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .onTapGesture {
+                                toggleSheet()
+                            }
+                        
+                        Text("Thrift Stores")
+                            .font(.system(size: 20, weight: .bold))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 4)
+                        
+                        List(stores) { store in
+                            Button(action: {
+                                wasSheetExpandedBeforeSelection = isExpanded
+                                selectStore(store)
+                            }) {
+                                StoreRow(store: store)
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            .listRowInsets(EdgeInsets())
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .padding(.vertical, 10)
+                            .padding(.horizontal, 16)
+                        }
+                        .listStyle(PlainListStyle())
+                        .scrollContentBackground(.hidden)
+                        
+                        // This ensures the sheet extends fully
+                        Spacer()
+                    }
+                    .frame(maxHeight: isExpanded ? expandedHeight : collapsedHeight)
+                    .background(Color(.systemGray6))
+                    .cornerRadius(16)
+                    .shadow(radius: 5)
+                    .ignoresSafeArea(edges: .bottom)
+                    .gesture(
+                        DragGesture()
+                            .onEnded { value in
+                                if value.translation.height < -50 {
+                                    expandSheet()
+                                } else if value.translation.height > 50 {
+                                    collapseSheet()
+                                }
+                            }
+                    )
+                }
+                
+                if let selectedStore = selectedStore {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Button(action: {
+                            closeStoreDetails()
+                        }) {
+                            HStack {
+                                Image(systemName: "arrow.left.circle.fill")
+                                    .foregroundColor(.blue)
+                                Text("Back")
+                                    .foregroundColor(.blue)
+                                    .font(.headline)
+                            }
+                            .padding(.top, 10)
+                        }
+                        
+                        Text(selectedStore.name)
+                            .font(.title)
+                            .bold()
+                        Text("Location: \(selectedStore.location)")
+                            .font(.subheadline)
+                        
+                        // Only show 'Get Directions' if the store has coordinates
+                        if let coordinate = selectedStore.coordinate {
+                            Button(action: {
+                                openMaps(for: selectedStore)
+                            }) {
+                                HStack {
+                                    Image(systemName: "map.fill")
+                                    Text("Get Directions")
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.blue)
+                                .foregroundColor(.white)
+                                .cornerRadius(10)
+                            }
+                        }
+                        
+                        Text("Available Coupons:")
+                            .font(.headline)
+                            .padding(.top, 8)
+                        
+                        ForEach(selectedStore.coupons) { coupon in
+                            VStack(alignment: .leading) {
+                                Text("\(coupon.description)")
+                                    .font(.subheadline)
+                                Text("Requires: \(coupon.requiredPoints) points")
+                                    .font(.footnote)
+                                    .foregroundColor(.gray)
+                            }
+                            .padding()
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .shadow(radius: 2)
+                        }
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.white)
+                    .cornerRadius(16)
+                    .shadow(radius: 5)
+                    .transition(.move(edge: .bottom))
+                }
+                
+            }
+            .onAppear {
+                fetchStores { fetchedStores in
+                    self.stores = fetchedStores
+                }
+                
+                if let userLocation = locationManager.userLocation {
+                    position = .region(MKCoordinateRegion(
+                        center: userLocation,
+                        span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+                    ))
+                }
+            }
+            .onReceive(locationManager.$userLocation) { userLocation in
+                if let userLocation = userLocation, !userHasInteracted {
+                    position = .region(MKCoordinateRegion(
+                        center: userLocation,
+                        span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+                    ))
+                }
+            }
+            .alert("Location Access Needed", isPresented: $showAlert) {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
                     }
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.white)
-                .cornerRadius(16)
-                .shadow(radius: 5)
-                .transition(.move(edge: .bottom))
-            }
-            
-        }
-        .onAppear {
-            fetchStores { fetchedStores in
-                self.stores = fetchedStores
-            }
-
-            if let userLocation = locationManager.userLocation {
-                position = .region(MKCoordinateRegion(
-                    center: userLocation,
-                    span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
-                ))
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Please enable location services in Settings to see stores near you.")
             }
         }
-        .onReceive(locationManager.$userLocation) { userLocation in
-            if let userLocation = userLocation, !userHasInteracted {
-                position = .region(MKCoordinateRegion(
-                    center: userLocation,
-                    span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
-                ))
-            }
-        }
-        .alert("Location Access Needed", isPresented: $showAlert) {
-            Button("Open Settings") {
-                if let url = URL(string: UIApplication.openSettingsURLString) {
-                    UIApplication.shared.open(url)
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Please enable location services in Settings to see stores near you.")
-        }
-    }
 
     private func selectStore(_ store: Store) {
         withAnimation {

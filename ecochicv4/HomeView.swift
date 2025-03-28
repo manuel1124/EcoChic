@@ -199,7 +199,7 @@ struct StreakBoxView: View {
             Button(action: {
                 // No action for now
             }) {
-                Text("Next Lesson")
+                Text("Next Milestone")
                     .font(.body)
                     .frame(maxWidth: .infinity)
                     .padding()

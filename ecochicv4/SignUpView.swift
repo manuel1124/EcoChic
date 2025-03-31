@@ -105,7 +105,7 @@ struct SignUpView: View {
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(passwordsMatch && !password.isEmpty && !name.isEmpty && !email.isEmpty ? Color(hex: "#98BE8E") : Color.gray)
+                    .background(passwordsMatch && !password.isEmpty && !name.isEmpty && !email.isEmpty ? Color(hex: "#48CB64") : Color.gray)
                     .foregroundColor(.white)
                     .cornerRadius(10)
             }

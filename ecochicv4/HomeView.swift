@@ -162,13 +162,11 @@ struct HomeView: View {
                 let coupons: [Coupon] = couponsArray.compactMap { couponData in
                     guard let id = couponData["id"] as? String,
                           let requiredPoints = couponData["requiredPoints"] as? Int,
-                          let discountAmount = couponData["discountAmount"] as? Double,
-                          let applicableItems = couponData["applicableItems"] as? [String],
-                          let description = couponData["description"] as? String else {
+                          let discountAmount = couponData["discountAmount"] as? Double else {
                         print("Invalid coupon data in store: \(name)")
                         return nil
                     }
-                    return Coupon(id: id, requiredPoints: requiredPoints, discountAmount: discountAmount, applicableItems: applicableItems, description: description)
+                    return Coupon(id: id, requiredPoints: requiredPoints, discountAmount: discountAmount)
                 }
 
                 // Return the Store object, passing nil for coordinate if it's unavailable
@@ -195,7 +193,7 @@ struct StreakBoxView: View {
             Text("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut et massa mi.")
                 .font(.subheadline)
                 .foregroundColor(.black.opacity(0.8))
-                .fixedSize(horizontal: false, vertical: true) // Ensures text wraps properly
+                .fixedSize(horizontal: false, vertical: true)
 
             Button(action: {
                 // No action for now
@@ -204,7 +202,7 @@ struct StreakBoxView: View {
                     .font(.body)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color(hex: "#718B6E")) // Ensure this color exists
+                    .background(Color(hex: "#48CB64"))
                     .foregroundColor(.white)
                     .cornerRadius(10)
             }

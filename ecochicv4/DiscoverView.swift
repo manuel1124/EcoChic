@@ -213,8 +213,8 @@ struct DiscoverView: View {
                         
                         ForEach(selectedStore.coupons) { coupon in
                             VStack(alignment: .leading) {
-                                Text("\(coupon.description)")
-                                    .font(.subheadline)
+                                //Text("\(coupon.description)")
+                                //    .font(.subheadline)
                                 Text("Requires: \(coupon.requiredPoints) points")
                                     .font(.footnote)
                                     .foregroundColor(.gray)

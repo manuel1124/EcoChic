@@ -131,7 +131,6 @@ struct ProfileView: View {
         }
     }
 
-
     private func fetchUserProfile() {
         guard let user = Auth.auth().currentUser else { return }
         userEmail = user.email ?? "No Email"
@@ -145,9 +144,10 @@ struct ProfileView: View {
                 name = data?["name"] as? String ?? "No Name"
                 userProgress = data?["progress"] as? Int ?? 0
                 userPoints = data?["points"] as? Int ?? 0
+                let activatedCoupons = data?["activatedCoupons"] as? [String: String] ?? [:] // Now stores activation codes
 
                 if let redeemedCouponIds = data?["redeemedCoupons"] as? [String] {
-                    fetchRedeemedCoupons(redeemedCouponIds: redeemedCouponIds)
+                    fetchRedeemedCoupons(redeemedCouponIds: redeemedCouponIds, activatedCoupons: activatedCoupons)
                 }
             } else {
                 print("Error fetching user profile: \(error?.localizedDescription ?? "Unknown error")")
@@ -155,7 +155,7 @@ struct ProfileView: View {
         }
     }
 
-    private func fetchRedeemedCoupons(redeemedCouponIds: [String]) {
+    private func fetchRedeemedCoupons(redeemedCouponIds: [String], activatedCoupons: [String: String]) {
         let db = Firestore.firestore()
         db.collection("stores").getDocuments { snapshot, error in
             if let error = error {
@@ -173,15 +173,21 @@ struct ProfileView: View {
                         if let couponId = couponData["id"] as? String,
                            redeemedCouponIds.contains(couponId) {
                             
+                            let isActivated = activatedCoupons[couponId] != nil
+                            let activationCode = activatedCoupons[couponId] // Retrieve stored activation code
+
                             let coupon = Coupon(
                                 id: couponId,
                                 requiredPoints: couponData["requiredPoints"] as? Int ?? 0,
-                                discountAmount: couponData["discountAmount"] as? Double ?? 0.0,
-                                applicableItems: couponData["applicableItems"] as? [String] ?? [],
-                                description: couponData["description"] as? String ?? ""
+                                discountAmount: couponData["discountAmount"] as? Double ?? 0.0
                             )
                             
-                            fetchedCoupons.append(RedeemedCoupon(coupon: coupon, storeThumbnailUrl: storeThumbnailUrl))
+                            fetchedCoupons.append(RedeemedCoupon(
+                                coupon: coupon,
+                                storeThumbnailUrl: storeThumbnailUrl,
+                                isActivated: isActivated,
+                                activationCode: activationCode
+                            ))
                         }
                     }
                 }
@@ -269,7 +275,7 @@ struct RedeemedCouponRow: View {
                 Text("\(activationCode ?? "N/A")")
                     .padding(.horizontal, 15)
                     .padding(.vertical, 5)
-                    .background(Color.blue)
+                    .background(Color.gray)
                     .foregroundColor(.white)
                     .cornerRadius(10)
             } else {
@@ -284,7 +290,7 @@ struct RedeemedCouponRow: View {
             }
         }
         .padding()
-        .background(isActivated ? Color.gray.opacity(0.3) : Color(hex: "#EAFFE4")) // Light green background
+        .background(isActivated ? Color.clear : Color(hex: "#EAFFE4"))
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
@@ -295,7 +301,23 @@ struct RedeemedCouponRow: View {
     }
 
     private func activateCoupon() {
-        activationCode = String((0..<5).map { _ in "ABCDEFGHIJKLMNOPQRSTUVWXYZ".randomElement()! })
+        guard let user = Auth.auth().currentUser else { return }
+        let db = Firestore.firestore()
+        let userRef = db.collection("users").document(user.uid)
+
+        let generatedCode = String((0..<5).map { _ in "ABCDEFGHIJKLMNOPQRSTUVWXYZ".randomElement()! })
+        activationCode = generatedCode
         isActivated = true
+
+        userRef.updateData([
+            "activatedCoupons.\(coupon.id)": generatedCode // Store the activation code in Firestore
+        ]) { error in
+            if let error = error {
+                print("Error saving activation code: \(error.localizedDescription)")
+            } else {
+                print("Coupon \(coupon.id) activated with code \(generatedCode).")
+            }
+        }
     }
+
 }

@@ -8,8 +8,8 @@ struct Coupon: Identifiable {
     let id: String   // Change this to String to match the Firestore document ID
     let requiredPoints: Int
     let discountAmount: Double
-    let applicableItems: [String]
-    let description: String
+    //let applicableItems: [String]
+    //let description: String
 }
 
 struct Store: Identifiable {
@@ -25,8 +25,6 @@ struct Store: Identifiable {
     var tiktok: String?
     var facebook: String?
 }
-
-import SwiftUI
 
 struct StoreView: View {
     @State private var stores: [Store] = []
@@ -289,14 +287,12 @@ func fetchStores(completion: @escaping ([Store]) -> Void) {
             let coupons = couponsArray.compactMap { couponData -> Coupon? in
                 guard let id = couponData["id"] as? String,
                       let requiredPoints = couponData["requiredPoints"] as? Int,
-                      let discountAmount = couponData["discountAmount"] as? Double,
-                      let applicableItems = couponData["applicableItems"] as? [String],
-                      let description = couponData["description"] as? String else {
+                      let discountAmount = couponData["discountAmount"] as? Double else {
                     print("Skipping coupon due to missing fields")
                     return nil
                 }
                 
-                return Coupon(id: id, requiredPoints: requiredPoints, discountAmount: discountAmount, applicableItems: applicableItems, description: description)
+                return Coupon(id: id, requiredPoints: requiredPoints, discountAmount: discountAmount)
             }
 
             // ✅ Fetch optional social media fields

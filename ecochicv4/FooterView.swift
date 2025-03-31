@@ -27,7 +27,7 @@ struct FooterView: View {
                     Text("Profile")
                 }
         }.background(Color(.systemGray6))
-            .accentColor(Color(hex: "#98BE8E"))
+            .accentColor(Color(hex: "#48CB64"))
     }
 }
 

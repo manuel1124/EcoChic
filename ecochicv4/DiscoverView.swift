@@ -25,6 +25,10 @@ struct DiscoverView: View {
     @State private var selectedCategory: String? = "Stores"
     
     let categories = ["Stores", "Events", "Recycling", "Donations"]
+    
+    init(storeToShow: Store? = nil) {
+            _selectedStore = State(initialValue: storeToShow) // Set initial selected store
+        }
 
     var body: some View {
         
@@ -432,19 +436,19 @@ struct DiscoverView: View {
             sheetHeight = collapsedHeight
         }
     }
+}
 
-    private func openMaps(for store: Store) {
-        // Safely unwrap the coordinate
-        if let coordinate = store.coordinate {
-            let latitude = coordinate.latitude
-            let longitude = coordinate.longitude
-            if let url = URL(string: "http://maps.apple.com/?daddr=\(latitude),\(longitude)") {
-                UIApplication.shared.open(url)
-            }
-        } else {
-            // Handle case where coordinate is nil (if needed)
-            print("Store does not have coordinates.")
+func openMaps(for store: Store) {
+    // Safely unwrap the coordinate
+    if let coordinate = store.coordinate {
+        let latitude = coordinate.latitude
+        let longitude = coordinate.longitude
+        if let url = URL(string: "http://maps.apple.com/?daddr=\(latitude),\(longitude)") {
+            UIApplication.shared.open(url)
         }
+    } else {
+        // Handle case where coordinate is nil (if needed)
+        print("Store does not have coordinates.")
     }
 }
 

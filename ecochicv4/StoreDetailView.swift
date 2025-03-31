@@ -10,8 +10,9 @@ extension Notification.Name {
 struct StoreDetailView: View {
     let store: Store
     @Binding var userPoints: Int  // Binding for user's points
+    //@Binding var selectedTab: Tab
     @State private var redeemedCoupons: [String] = [] // Track redeemed coupons
-    @State private var selectedTab: String = "Rewards" // Default to Rewards
+    @State private var selectedSection: String = "Rewards" // Default to Rewards
 
     var body: some View {
         VStack(spacing: 0) {
@@ -52,14 +53,14 @@ struct StoreDetailView: View {
             
             // Tabs
             HStack {
-                TabButton(title: "Rewards", selectedTab: $selectedTab)
-                TabButton(title: "About", selectedTab: $selectedTab)
+                TabButton(title: "Rewards", selectedSection: $selectedSection)
+                TabButton(title: "About", selectedSection: $selectedSection)
             }
             .background(Color(UIColor.systemGray6))
             
             // Tab Content
             ScrollView {
-                if selectedTab == "Rewards" {
+                if selectedSection == "Rewards" {
                     RewardsSection()
                 } else {
                     AboutSection()
@@ -82,6 +83,24 @@ struct StoreDetailView: View {
             Text(store.about.isEmpty ? "No description available." : store.about)
                 .font(.body)
                 .padding(.bottom)
+
+            // Show on Map Button (only if store has a location)
+            if let coordinate = store.coordinate {
+                Button(action: {
+                    openMaps(for: store)
+                }) {
+                    HStack {
+                        Image(systemName: "map.fill")
+                        Text("Get Directions")
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+                }
+            }
+
 
             // Social Media Links
             if store.website != nil || store.instagram != nil || store.tiktok != nil || store.facebook != nil {
@@ -118,6 +137,7 @@ struct StoreDetailView: View {
         }
         .padding()
     }
+
     
     // Rewards Section
     @ViewBuilder
@@ -146,17 +166,17 @@ struct StoreDetailView: View {
 
 struct TabButton: View {
     let title: String
-    @Binding var selectedTab: String
+    @Binding var selectedSection: String
     
     var body: some View {
-        Button(action: { selectedTab = title }) {
+        Button(action: { selectedSection = title }) {
             VStack {
                 Text(title)
                     .font(.headline)
-                    .foregroundColor(selectedTab == title ? .black : .gray)
+                    .foregroundColor(selectedSection == title ? .black : .gray)
                 Rectangle()
                     .frame(height: 2)
-                    .foregroundColor(selectedTab == title ? .green : .clear)
+                    .foregroundColor(selectedSection == title ? .green : .clear)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)

@@ -288,7 +288,7 @@ struct RedeemedCouponRow: View {
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(isActivated ? Color.blue : Color.green, style: StrokeStyle(lineWidth: 2, dash: [6]))
+                .stroke(isActivated ? Color.gray : Color.green, style: StrokeStyle(lineWidth: 2, dash: [6]))
         )
         .padding(.horizontal)
         .padding(.top, 20)

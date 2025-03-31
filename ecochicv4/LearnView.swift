@@ -40,13 +40,17 @@ struct LearnView: View {
                         Spacer()
 
                         HStack(spacing: 4) {
-                            Image(systemName: "star.fill")
-                                .foregroundColor(.yellow)
+                            Image("points logo") // Use your asset image
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 20, height: 20) // Adjust size as needed
                             Text("\(userPoints)")
                                 .font(.headline)
                                 .bold()
                                 .foregroundColor(.black)
                         }
+                        .padding(10)
+                        .cornerRadius(10)
                     }
                     .padding([.top, .leading, .trailing])
 
@@ -204,8 +208,10 @@ struct VideoRow: View {
                                 Spacer() // Pushes points all the way right
 
                                 HStack(spacing: 4) {
-                                    Image(systemName: "star.fill")
-                                        .foregroundColor(.yellow)
+                                    Image("points logo") // Use your asset image
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 20, height: 20) // Adjust size as needed
                                     Text("\(video.points)")
                                         .font(.subheadline)
                                         .foregroundColor(.black)

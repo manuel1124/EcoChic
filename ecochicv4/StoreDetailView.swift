@@ -1,6 +1,7 @@
 import SwiftUI
 import FirebaseFirestore
 import FirebaseAuth
+import SafariServices
 
 extension Notification.Name {
     static let couponRedeemed = Notification.Name("couponRedeemed")
@@ -74,15 +75,48 @@ struct StoreDetailView: View {
             }
         }
     }
-    
-    // About Section
+
     @ViewBuilder
     private func AboutSection() -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(store.about.isEmpty ? "No description available." : store.about)
                 .font(.body)
-                .padding()
+                .padding(.bottom)
+
+            // Social Media Links
+            if store.website != nil || store.instagram != nil || store.tiktok != nil || store.facebook != nil {
+                Text("Follow us on:")
+                    .font(.headline)
+                    .padding(.top)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    if let website = store.website, !website.isEmpty {
+                        Link(destination: URL(string: website)!) {
+                            Label("Website", systemImage: "globe")
+                        }
+                    }
+                    if let instagram = store.instagram, !instagram.isEmpty {
+                        Link(destination: URL(string: instagram)!) {
+                            Label("Instagram", systemImage: "camera")
+                        }
+                    }
+                    if let facebook = store.facebook, !facebook.isEmpty {
+                        Link(destination: URL(string: facebook)!) {
+                            Label("Facebook", systemImage: "f.circle.fill")
+                        }
+                    }
+                    if let tiktok = store.tiktok, !tiktok.isEmpty {
+                        Link(destination: URL(string: tiktok)!) {
+                            Label("TikTok", systemImage: "music.note")
+                        }
+                    }
+                }
+                .font(.body)
+                .foregroundColor(.blue)
+                .padding(.top, 5)
+            }
         }
+        .padding()
     }
     
     // Rewards Section
@@ -164,8 +198,10 @@ struct CouponRow: View {
                 .disabled(true)
             } else {
                 HStack {
-                    Image(systemName: "star.fill")
-                        .foregroundColor(.green)
+                    Image("points logo") // Use your asset image
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 20, height: 20) // Adjust size as needed
                     Text("\(coupon.requiredPoints)")
                         .bold()
                 }

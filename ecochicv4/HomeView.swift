@@ -14,8 +14,8 @@ struct HomeView: View {
         (title: "Eco Shorts", imageName: "Eco Shorts"),
         (title: "Fact or Fiction", imageName: "Fact or Fiction"),
         (title: "Blitz Round", imageName: "Blitz Round"),
-        (title: "Green Choices", imageName: "Green Choices"),
-        (title: "Tag Check", imageName: "Tag Check"),
+        //(title: "Green Choices", imageName: "Green Choices"),
+        //(title: "Tag Check", imageName: "Tag Check"),
         (title: "Style Persona", imageName: "Style Persona")
     ]
     var body: some View {
@@ -26,13 +26,15 @@ struct HomeView: View {
                             Text("Home")
                                 .font(.title)
                                 .bold()
-                                .padding()
+                                //.padding()
 
                             Spacer()
 
                             HStack(spacing: 4) {
-                                Image(systemName: "star.fill")
-                                    .foregroundColor(.yellow)
+                                Image("points logo") // Use your asset image
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 20, height: 20) // Adjust size as needed
                                 Text("\(userPoints)")
                                     .font(.headline)
                                     .bold()

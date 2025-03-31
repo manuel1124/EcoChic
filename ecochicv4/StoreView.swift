@@ -20,7 +20,13 @@ struct Store: Identifiable {
     var coupons: [Coupon]
     var about: String
     var thumbnailUrl: String
+    var website: String?
+    var instagram: String?
+    var tiktok: String?
+    var facebook: String?
 }
+
+import SwiftUI
 
 struct StoreView: View {
     @State private var stores: [Store] = []
@@ -29,17 +35,20 @@ struct StoreView: View {
     var body: some View {
         NavigationView {
             VStack {
+                // Title and Points UI
                 HStack {
-                    Text("Stores")  // Title changed to Eco Shorts
+                    Text("Rewards Store")
                         .font(.title)
-                        .padding()
                         .bold()
-                    
+                        //.padding()
+
                     Spacer()
-                    
+
                     HStack(spacing: 4) {
-                        Image(systemName: "star.fill")
-                            .foregroundColor(.yellow)
+                        Image("points logo") // Use your asset image
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 20, height: 20) // Adjust size as needed
                         Text("\(userPoints)")
                             .font(.headline)
                             .bold()
@@ -48,18 +57,116 @@ struct StoreView: View {
                     .padding(10)
                     .cornerRadius(10)
                 }
-                .padding([.top, .leading, .trailing])  // Padding for the top row
+                .padding([.top, .leading, .trailing])
                 
-                ScrollView {
-                    VStack(spacing: 16) {
-                        ForEach(stores) { store in
-                            NavigationLink(destination: StoreDetailView(store: store, userPoints: $userPoints)) {
-                                StoreRow(store: store)
-                            }
-                            .buttonStyle(PlainButtonStyle()) // Removes default navigation button styling
+                // **Top Deals Section**
+                VStack(alignment: .leading) {
+                    HStack {
+                        Text("Top Deals")
+                            .font(.title2)
+                            //.bold()
+                        
+                        Spacer()
+                        
+                        /*
+                        NavigationLink(destination: Text("See all stores")) {
+                            Text("See all")
+                                .font(.subheadline)
+                                .foregroundColor(.blue)
                         }
+                         */
                     }
-                    .padding()
+                    .padding(.horizontal)
+                    
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 10) {
+                            ForEach(0..<stores.count, id: \.self) { index in
+                                let store = stores[index]
+                                if let coupon = store.coupons.first { // Take the first coupon
+                                    let dealImageName = "top deals \(index + 1)" // Matching image from assets
+                                    NavigationLink(destination: StoreDetailView(store: store, userPoints: $userPoints)) {
+                                        ZStack(alignment: .bottomLeading) {
+                                            Image(dealImageName)
+                                                .resizable()
+                                                .scaledToFill()
+                                                .frame(width: 230, height: 180)
+                                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                                .shadow(radius: 2)
+                                            
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                Text("\(Int(coupon.discountAmount * 100))% Off")
+                                                    .font(.title)
+                                                    .bold()
+                                                    .foregroundColor(.white)
+                                                    .shadow(radius: 5)
+
+                                                HStack {
+                                                    if let url = URL(string: store.thumbnailUrl) {
+                                                        AsyncImage(url: url) { phase in
+                                                            switch phase {
+                                                            case .success(let image):
+                                                                image
+                                                                    .resizable()
+                                                                    .scaledToFill()
+                                                                    .frame(width: 30, height: 30) // Small thumbnail size
+                                                                    .clipShape(Circle()) // Rounded thumbnail
+                                                            case .failure:
+                                                                Color.gray
+                                                                    .frame(width: 30, height: 30)
+                                                                    .clipShape(Circle())
+                                                            default:
+                                                                ProgressView()
+                                                                    .frame(width: 30, height: 30)
+                                                            }
+                                                        }
+                                                    }
+
+                                                    Text(store.name)
+                                                        .font(.headline)
+                                                        .foregroundColor(.white)
+                                                        .shadow(radius: 5)
+                                                }
+                                            }
+                                            .padding(12)
+                                        }
+                                    }.buttonStyle(PlainButtonStyle())
+                                }
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+                }
+                .padding(.vertical)
+                
+                // **Partnered Stores**
+                VStack(alignment: .leading) {
+                    HStack {
+                        Text("Partnered Stores")
+                            .font(.title2)
+                            //.bold()
+                        
+                        Spacer()
+                        /*
+                        NavigationLink(destination: Text("See all stores")) {
+                            Text("See all")
+                                .font(.subheadline)
+                                .foregroundColor(.blue)
+                        }
+                         */
+                    }
+                    .padding(.horizontal)
+                    
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            ForEach(stores) { store in
+                                NavigationLink(destination: StoreDetailView(store: store, userPoints: $userPoints)) {
+                                    StoreRow(store: store)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                            }
+                        }
+                        .padding()
+                    }
                 }
             }
             .onAppear {
@@ -67,7 +174,8 @@ struct StoreView: View {
                 fetchStores { fetchedStores in
                     self.stores = fetchedStores
                 }
-            }.background(Color(.systemGray6))
+            }
+            .background(Color(.systemGray6))
         }
     }
     
@@ -190,10 +298,28 @@ func fetchStores(completion: @escaping ([Store]) -> Void) {
                 
                 return Coupon(id: id, requiredPoints: requiredPoints, discountAmount: discountAmount, applicableItems: applicableItems, description: description)
             }
+
+            // ✅ Fetch optional social media fields
+            let website = data["website"] as? String
+            let instagram = data["instagram"] as? String
+            let facebook = data["facebook"] as? String
+            let tiktok = data["tiktok"] as? String
             
             print("Adding store: \(name), coordinate: \(coordinate != nil ? "Yes" : "No")")
             
-            return Store(id: doc.documentID, name: name, location: location, coordinate: coordinate, coupons: coupons, about: about, thumbnailUrl: thumbnailUrl)
+            return Store(
+                id: doc.documentID,
+                name: name,
+                location: location,
+                coordinate: coordinate,
+                coupons: coupons,
+                about: about,
+                thumbnailUrl: thumbnailUrl,
+                website: website,
+                instagram: instagram,
+                tiktok: tiktok,
+                facebook: facebook
+            )
         }
         
         print("Final store count: \(stores.count)")

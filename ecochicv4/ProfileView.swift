@@ -6,101 +6,131 @@ struct ProfileView: View {
     @Environment(AppController.self) private var appController
     @State private var name: String = "Loading..."
     @State private var userEmail: String = "Loading..."
+    @State private var userProgress: Int = 0
     @State private var userPoints: Int = 0
-    @State private var redeemedCoupons: [(coupon: Coupon, storeThumbnailUrl: String)] = []
+    @State private var redeemedCoupons: [RedeemedCoupon] = []
+    
 
     var body: some View {
-        VStack(spacing: 20) {
-            // Profile Title & Points Display
-            HStack {
-                Text("Profile")
-                    .font(.title)
-                    .bold()
-                
-                Spacer()
-                
-                HStack(spacing: 4) {
-                    Image(systemName: "star.fill")
-                        .foregroundColor(.yellow)
-                    Text("\(userPoints)")
-                        .font(.headline)
+        NavigationStack {
+            VStack(spacing: 20) {
+                // Profile Title & Points Display
+                HStack {
+                    Text("Profile")
+                        .font(.title)
                         .bold()
-                        .foregroundColor(.black)
+                        //.padding()
+
+                    Spacer()
+
+                    HStack(spacing: 4) {
+                        Image("points logo") // Use your asset image
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 20, height: 20) // Adjust size as needed
+                        Text("\(userPoints)")
+                            .font(.headline)
+                            .bold()
+                            .foregroundColor(.black)
+                    }
+                    .padding(10)
+                    .cornerRadius(10)
                 }
-                .padding(10)
-            }
-            .padding(.horizontal)
-            
-            // Profile Information
-            VStack(alignment: .leading, spacing: 12) {
-                ProfileRow(label: "Name", value: name)
-                ProfileRow(label: "Email", value: userEmail)
-                ProfileRow(label: "Points", value: "\(userPoints)")
-            }
-            .padding()
-            .background(Color.white)
-            .cornerRadius(12)
-            .shadow(radius: 3)
-            .padding(.horizontal)
-            
-            // Redeemed Coupons Section
-            VStack(alignment: .center, spacing: 12) {
-                Text("Redeemed Coupons")
-                    .font(.headline)
-                    .fontWeight(.bold)
-                    .foregroundColor(.black)
-                    .padding(.top)
-                    .multilineTextAlignment(.center)  // Center the text
-                    .frame(maxWidth: .infinity, alignment: .center) // Center the text horizontally
-                    .padding(.bottom, 10)
-                    .overlay(
-                            Rectangle()
-                                .frame(height: 2)  // Green underline
-                                .foregroundColor(.green)
-                                .padding(.top, 20)  // Add padding to move the underline below the text
-                                .padding(.horizontal, 40) // Optional: Adjust the width of the underline
-                            , alignment: .bottom // Position the underline at the bottom of the text
-                        )
+                .padding([.top, .leading, .trailing])
                 
-                if redeemedCoupons.isEmpty {
-                    Text("No redeemed coupons yet.")
-                        .foregroundColor(.gray)
-                        .padding()
-                } else {
-                    ScrollView {
-                        VStack(spacing: 10) {
-                            ForEach(redeemedCoupons, id: \.coupon.id) { redeemedCoupon in
-                                RedeemedCouponRow(coupon: redeemedCoupon.coupon, storeThumbnailUrl: redeemedCoupon.storeThumbnailUrl)
+                // Profile Information
+                Text(name)
+                    .font(.title)
+                
+                // Lessons Completed & Coupons Redeemed
+                HStack(spacing: 20) {
+                    VStack {
+                        Text("Lessons Completed")
+                            .font(.headline)
+                            .foregroundColor(.gray)
+                            .lineLimit(1)
+                        Text("\(userProgress)")
+                            .font(.title3)
+                    }
+                    VStack {
+                        Text("Redeemed Coupons")
+                            .font(.headline)
+                            .foregroundColor(.gray)
+                            .lineLimit(1)
+                        Text("\(redeemedCoupons.count)")
+                            .font(.title3)
+                    }
+                }
+                .padding()
+                .background(Color.white)
+                .cornerRadius(12)
+                .shadow(radius: 2)
+                .padding(.horizontal)
+                
+                // Redeemed Coupons Section
+                VStack(alignment: .center, spacing: 12) {
+                    Text("Redeemed Coupons")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.black)
+                        .padding(.top)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.bottom, 10)
+                        .overlay(
+                            Rectangle()
+                                .frame(height: 2)
+                                .foregroundColor(.green)
+                                .padding(.top, 20)
+                                .padding(.horizontal, 40),
+                            alignment: .bottom
+                        )
+                    
+                    if redeemedCoupons.isEmpty {
+                        Text("No redeemed coupons yet.")
+                            .foregroundColor(.gray)
+                            .padding()
+                    } else {
+                        ScrollView {
+                            VStack(spacing: 10) {
+                                ForEach($redeemedCoupons, id: \.coupon.id) { $redeemedCoupon in
+                                    RedeemedCouponRow(
+                                        coupon: redeemedCoupon.coupon,
+                                        storeThumbnailUrl: redeemedCoupon.storeThumbnailUrl,
+                                        isActivated: $redeemedCoupon.isActivated,
+                                        activationCode: $redeemedCoupon.activationCode
+                                    )
+                                }
                             }
                         }
                     }
+                    Spacer()
                 }
-            }
-
-            // Logout Button
-            Button(action: {
-                do {
-                    try appController.signOut()
-                } catch {
-                    print("Error signing out: \(error.localizedDescription)")
+                
+                // Logout Button
+                Button(action: {
+                    do {
+                        try appController.signOut()
+                    } catch {
+                        print("Error signing out: \(error.localizedDescription)")
+                    }
+                }) {
+                    Text("Logout")
+                        .fontWeight(.bold)
+                        .frame(maxWidth: 150)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 20)
+                        .background(Color.red)
+                        .foregroundColor(.white)
+                        .cornerRadius(25)
                 }
-            }) {
-                Text("Logout")
-                    .fontWeight(.bold)
-                    .frame(maxWidth: 150)  // Adjust width to make it smaller
-                    .padding(.vertical, 10)  // Reduce vertical padding
-                    .padding(.horizontal, 20)  // Adjust horizontal padding
-                    .background(Color.red)
-                    .foregroundColor(.white)
-                    .cornerRadius(25)
+                .padding(.bottom, 20)
             }
-            .padding(.bottom, 20)  // Add space from the bottom
-            
+            .background(Color(.systemGray6))
+            .onAppear(perform: fetchUserProfile)
         }
-        .padding()
-        .background(Color(.systemGray6))
-        .onAppear(perform: fetchUserProfile)
     }
+
 
     private func fetchUserProfile() {
         guard let user = Auth.auth().currentUser else { return }
@@ -113,6 +143,7 @@ struct ProfileView: View {
             if let document = document, document.exists {
                 let data = document.data()
                 name = data?["name"] as? String ?? "No Name"
+                userProgress = data?["progress"] as? Int ?? 0
                 userPoints = data?["points"] as? Int ?? 0
 
                 if let redeemedCouponIds = data?["redeemedCoupons"] as? [String] {
@@ -132,7 +163,7 @@ struct ProfileView: View {
                 return
             }
 
-            var fetchedCoupons: [(coupon: Coupon, storeThumbnailUrl: String)] = []
+            var fetchedCoupons: [RedeemedCoupon] = []
 
             for document in snapshot?.documents ?? [] {
                 let storeData = document.data()
@@ -150,8 +181,7 @@ struct ProfileView: View {
                                 description: couponData["description"] as? String ?? ""
                             )
                             
-                            // Add the coupon with the store's thumbnail URL to the array
-                            fetchedCoupons.append((coupon: coupon, storeThumbnailUrl: storeThumbnailUrl))
+                            fetchedCoupons.append(RedeemedCoupon(coupon: coupon, storeThumbnailUrl: storeThumbnailUrl))
                         }
                     }
                 }
@@ -185,9 +215,18 @@ struct ProfileRow: View {
     }
 }
 
+struct RedeemedCoupon {
+    var coupon: Coupon
+    var storeThumbnailUrl: String
+    var isActivated: Bool = false
+    var activationCode: String? = nil
+}
+
 struct RedeemedCouponRow: View {
     let coupon: Coupon
     let storeThumbnailUrl: String
+    @Binding var isActivated: Bool
+    @Binding var activationCode: String?
 
     var body: some View {
         HStack {
@@ -218,23 +257,45 @@ struct RedeemedCouponRow: View {
                 Text("\(Int(coupon.discountAmount * 100))% off")
                     .font(.headline)
                     .bold()
-                
-                // Additional info can go here, such as expiration date
+
                 Text("Valid till Apr 07, 2025")
                     .font(.subheadline)
                     .foregroundColor(.gray)
             }
             Spacer()
+
+            // Button shows the activation code when activated, otherwise it shows "Activate"
+            if isActivated {
+                Text("\(activationCode ?? "N/A")")
+                    .padding(.horizontal, 15)
+                    .padding(.vertical, 5)
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+            } else {
+                Button(action: activateCoupon) {
+                    Text("Activate")
+                        .padding(.horizontal, 15)
+                        .padding(.vertical, 5)
+                        .background(Color.green)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                }
+            }
         }
         .padding()
-        .background(Color(hex: "#EAFFE4")) // Light green background
+        .background(isActivated ? Color.gray.opacity(0.3) : Color(hex: "#EAFFE4")) // Light green background
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.green, style: StrokeStyle(lineWidth: 2, dash: [6]))
+                .stroke(isActivated ? Color.blue : Color.green, style: StrokeStyle(lineWidth: 2, dash: [6]))
         )
         .padding(.horizontal)
         .padding(.top, 20)
     }
-}
 
+    private func activateCoupon() {
+        activationCode = String((0..<5).map { _ in "ABCDEFGHIJKLMNOPQRSTUVWXYZ".randomElement()! })
+        isActivated = true
+    }
+}

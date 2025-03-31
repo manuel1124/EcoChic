@@ -23,8 +23,10 @@ struct VideoPlayerView: View {
                 Spacer()
                 
                 HStack(spacing: 4) {
-                    Image(systemName: "star.fill")
-                        .foregroundColor(.yellow)
+                    Image("points logo") // Use your asset image
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 20, height: 20) // Adjust size as needed
                     Text("\(userPoints)")
                         .font(.headline)
                         .bold()
@@ -66,8 +68,10 @@ struct VideoPlayerView: View {
                 
                 Spacer()
                 
-                Image(systemName: "star.fill")
-                    .foregroundColor(.yellow)
+                Image("points logo") // Use your asset image
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 20, height: 20) // Adjust size as needed
                 Text("\(video.points)")
                     .font(.subheadline)
                     .foregroundColor(.secondary)

@@ -45,7 +45,12 @@ struct HomeView: View {
                         }
                         .padding([.top, .leading, .trailing])
 
-                        StreakBoxView(streak: streak)
+                        ScrollView(.vertical, showsIndicators: false) {
+                            VStack(alignment: .leading, spacing: 16) {
+                                StreakBoxView(streak: streak)
+                            }
+                        }
+
 
                         Text("Your favourite stores")
                             .font(.headline)
@@ -96,10 +101,10 @@ struct HomeView: View {
                     //addNewStoreWithCoupons()
                     fetchStores()
                     updateUserStreak { updatedStreak in
-                        DispatchQueue.main.async {
-                            self.streak = updatedStreak
+                            DispatchQueue.main.async {
+                                self.streak = updatedStreak
+                            }
                         }
-                    }
                 }
                 .background(Color(.systemGray6))
             }
@@ -183,38 +188,92 @@ struct HomeView: View {
 
 struct StreakBoxView: View {
     var streak: Int
+    @State private var showInfo = false
+
+    private var nextMilestone: Int {
+        return streak < 5 ? 5 : 15
+    }
+
+    private var milestonePoints: Int {
+        return nextMilestone == 5 ? 1000 : 5000
+    }
+
+    private var dotRange: [Int] {
+        return streak < 5 ? Array(0...5) : Array(5...15)
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("\(streak) Day Streak")
-                .font(.headline)
-                .bold()
+        VStack(alignment: .leading, spacing: 16) {
+            // Header
+            HStack {
+                Text("\(streak) Day Streak")
+                    .font(.headline)
+                    .bold()
+                
+                Spacer()
+                
+                // Info bubble toggle button (top-right)
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        withAnimation {
+                            showInfo.toggle()
+                        }
+                    }) {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.black)
+                            .padding(.trailing, 4)
+                    }
+                }
+            }
 
-            Text("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut et massa mi.")
+            // Dots with background bar and info button
+            GeometryReader { geometry in
+                let dotSize: CGFloat = 14
+                let spacing = (geometry.size.width - (dotSize * CGFloat(dotRange.count))) / CGFloat(dotRange.count - 1)
+
+                ZStack(alignment: .leading) {
+                    // Background bar
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.green.opacity(0.15))
+                        .frame(height: 28)
+
+                    // Dots
+                    HStack(spacing: spacing) {
+                        ForEach(dotRange, id: \.self) { day in
+                            Circle()
+                                .fill(day <= streak ? Color.green : Color.gray)
+                                .frame(width: dotSize, height: dotSize)
+                        }
+                    }
+
+                }
+            }
+            .frame(height: 28)
+
+            // Expandable info bubble
+            if showInfo {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Earn 100 points every day you continue your streak, and earn even more points for reaching milestones!")
+                    Text(" ")
+                    Text("Reach day \(nextMilestone) to earn a bonus \(milestonePoints) points.")
+                }
                 .font(.subheadline)
-                .foregroundColor(.black.opacity(0.8))
-                .fixedSize(horizontal: false, vertical: true)
-
-            Button(action: {
-                // No action for now
-            }) {
-                Text("Next Milestone")
-                    .font(.body)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color(hex: "#48CB64"))
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
+                //.padding(10)
+                //.background(Color.green.opacity(0.1))
+                .cornerRadius(8)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
         .padding()
-        .frame(maxWidth: .infinity) // Ensures the whole box can expand properly
+        .frame(maxWidth: .infinity)
         .background(Color.white)
         .cornerRadius(16)
         .shadow(color: .gray.opacity(0.3), radius: 5, x: 0, y: 2)
         .padding(.horizontal)
     }
 }
+
 
 struct CategoryBox: View {
     let imageName: String
@@ -242,16 +301,17 @@ func updateUserStreak(completion: @escaping (Int) -> Void) {
     userRef.getDocument { snapshot, error in
         if let error = error {
             print("Error fetching user data: \(error.localizedDescription)")
-            completion(0) // Return default streak of 0 on error
+            completion(0)
             return
         }
         
         guard let data = snapshot?.data(),
               let lastLogin = data["lastLogin"] as? Timestamp,
-              let streak = data["streak"] as? Int else {
-            print("No last login found, setting streak to 0")
-            userRef.setData(["streak": 0, "lastLogin": Timestamp(date: Date())], merge: true)
-            completion(0)
+              let streak = data["streak"] as? Int,
+              var points = data["points"] as? Int else {
+            print("No last login found, initializing streak and points.")
+            userRef.setData(["streak": 1, "lastLogin": Timestamp(date: Date()), "points": 100], merge: true)
+            completion(1)
             return
         }
         
@@ -266,18 +326,38 @@ func updateUserStreak(completion: @escaping (Int) -> Void) {
         
         if daysDifference == 1 {
             // User logged in on the next day, increase streak
-            let newStreak = streak + 1
+            var newStreak = streak + 1
+            var dailyPoints = 100
+
+            // Check for milestone bonuses
+            if newStreak == 5 {
+                dailyPoints += 1000 // Bonus for reaching day 5
+            } else if newStreak == 15 {
+                dailyPoints += 5000 // Bonus for reaching day 15
+            }
+
+            points += dailyPoints // Add the earned points
+
             userRef.updateData([
                 "streak": newStreak,
-                "lastLogin": Timestamp(date: currentDate)
-            ])
+                "lastLogin": Timestamp(date: currentDate),
+                "points": points
+            ]) { error in
+                if let error = error {
+                    print("Error updating streak: \(error.localizedDescription)")
+                }
+            }
             completion(newStreak)
         } else if daysDifference > 1 {
             // User missed a day, reset streak
             userRef.updateData([
                 "streak": 0,
                 "lastLogin": Timestamp(date: currentDate)
-            ])
+            ]) { error in
+                if let error = error {
+                    print("Error resetting streak: \(error.localizedDescription)")
+                }
+            }
             completion(0)
         } else {
             // User already logged in today, do nothing
@@ -285,6 +365,7 @@ func updateUserStreak(completion: @escaping (Int) -> Void) {
         }
     }
 }
+
 
 // Functions to add new items in firestore
 

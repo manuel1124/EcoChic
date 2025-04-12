@@ -8,20 +8,37 @@ struct PersonalityQuizView: View {
     let traits: [PersonalityTrait]
     let collectionId: String
     let collectionPoints: Int
-    @State private var userId = Auth.auth().currentUser?.uid
+    @State private var showConfetti = false
 
+    @State private var userId = Auth.auth().currentUser?.uid
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.presentationMode) var presentationMode
 
     @State private var currentQuestionIndex = 0
     @State private var selectedOptionIndices: [Int: Int] = [:]
-    @State private var isQuizCompleted = false
-    private var selectedTraitIndex: Int {
-            let freq = selectedOptionIndices.values.reduce(into: [Int:Int]()) { acc, idx in
-                acc[idx, default: 0] += 1
-            }
-            return freq.max(by: { $0.value < $1.value })?.key ?? 0
-        }
-    @Environment(\.presentationMode) var presentationMode
+
+    // ← NEW: store the Firestore‐loaded trait index
+    @State private var loadedTraitIndex: Int? = nil
+
+    // we’re done when we either load a previous result or complete now
+    private var isQuizCompleted: Bool {
+    return loadedTraitIndex != nil
+      || (selectedOptionIndices.count == quiz.count && currentQuestionIndex >= quiz.count)
+    }
+
+    // pick the trait to display
+    private var displayTrait: PersonalityTrait {
+    // 1) if we loaded one, use it
+    if let idx = loadedTraitIndex, idx >= 0, idx < traits.count {
+      return traits[idx]
+    }
+    // 2) otherwise fall back to “most‐selected” logic
+    let freq = selectedOptionIndices.values.reduce(into: [Int:Int]()) { acc, idx in
+      acc[idx, default: 0] += 1
+    }
+    let best = freq.max(by: { $0.value < $1.value })?.key ?? 0
+    return (best >= 0 && best < traits.count) ? traits[best] : traits.first!
+    }
 
     var body: some View {
         VStack {
@@ -124,30 +141,37 @@ struct PersonalityQuizView: View {
                     .padding()
                 }
             } else {
-                // MARK: Result view
-                let trait = selectedTrait
-                VStack(spacing: 16) {
-                    Text(trait.title)
-                        .font(.largeTitle)
-                        .bold()
+                ZStack {
+                    if showConfetti {
+                        ConfettiView()
+                            .ignoresSafeArea()
+                    }
+                    let trait = displayTrait
+                    VStack(spacing: 16) {
+                      Text(trait.title)
+                        .font(.largeTitle).bold()
                         .multilineTextAlignment(.center)
                         .padding(.top)
 
-                    Text(trait.description)
+                      Text(trait.description)
                         .font(.body)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
 
-                    Text("Tip:")
+                      Text("Tip:")
                         .font(.headline)
-                    Text(trait.tip)
-                        .font(.body)
-                        .multilineTextAlignment(.center)
+                        VStack(alignment: .leading, spacing: 4) {
+                          ForEach(trait.tip.components(separatedBy: "\\n"), id: \.self) { line in
+                            Text(line)
+                              .font(.body)
+                          }
+                        }
                         .padding(.horizontal)
-
-                    //Spacer()
+                      //Spacer()
+                    }
+                    .padding()
                 }
-                .padding()
+                .transition(.opacity)
             }
         }
         .navigationBarBackButtonHidden(true)
@@ -157,10 +181,16 @@ struct PersonalityQuizView: View {
     }
     
     private func completeQuiz() {
-            // simply flip into the result view
-            isQuizCompleted = true
-            updateFirestoreScore()
-        }
+        showConfetti = true
+        // store locally so `isQuizCompleted` flips
+        loadedTraitIndex = selectedOptionIndices.values
+          .reduce(into: [Int:Int]()) { $0[$1, default:0] += 1 }
+          .max(by: { $0.value < $1.value })?.key ?? 0
+
+        // award points + write to Firestore
+        updateFirestoreScore()
+      }
+
 
     /// Tally the selected option‐indices and pick the most frequent one.
     private var selectedTrait: PersonalityTrait {
@@ -179,59 +209,45 @@ struct PersonalityQuizView: View {
     }
     
     private func updateFirestoreScore() {
-        guard let userId = userId else { return }
-        let db = Firestore.firestore()
-        let userRef = db.collection("users").document(userId)
-        
-        userRef.getDocument { document, error in
-            if let error = error {
-                print("Error fetching user document: \(error.localizedDescription)")
-                return
-            }
-            
-            if let document = document, document.exists {
-                var completedQuizzes = document.data()?["completedQuizzes"] as? [String: Int] ?? [:]
-                var currentPoints = document.data()?["points"] as? Int ?? 0
-                
-                if completedQuizzes[collectionId] == nil {
-                    currentPoints += collectionPoints
-                }
-                
-                completedQuizzes[collectionId] = selectedTraitIndex
-                
-                userRef.updateData([
-                    "completedQuizzes": completedQuizzes,
-                    "points": currentPoints,
-                    "progress": completedQuizzes.keys.count
-                ]) { error in
-                    if let error = error {
-                        print("Error updating user progress: \(error.localizedDescription)")
-                    } else {
-                        print("User progress and points updated successfully!")
-                    }
-                }
-            }
+        guard let uid = userId,
+              let idx = loadedTraitIndex
+        else { return }
+
+        let userRef = Firestore.firestore().collection("users").document(uid)
+        userRef.getDocument { snap, err in
+          guard let data = snap?.data(), err == nil else { return }
+
+          var completed = data["completedQuizzes"] as? [String:Int] ?? [:]
+          var points    = data["points"] as? Int           ?? 0
+
+          if completed[collectionId] == nil {
+            points += collectionPoints
+          }
+          completed[collectionId] = idx
+
+          userRef.updateData([
+            "completedQuizzes": completed,
+            "points": points,
+            "progress": completed.keys.count
+          ])
         }
+      }
+
+      private func checkIfQuizAttempted() {
+        guard let uid = userId else { return }
+
+        Firestore.firestore()
+          .collection("users")
+          .document(uid)
+          .getDocument { snap, err in
+            guard err == nil,
+                  let data = snap?.data(),
+                  let completed = data["completedQuizzes"] as? [String:Int],
+                  let idx = completed[collectionId]
+            else { return }
+
+            // load it so the view shows the right trait
+            loadedTraitIndex = idx
+          }
+      }
     }
-    
-    private func checkIfQuizAttempted() {
-        guard let userId = userId else { return }
-        let db = Firestore.firestore()
-        let userRef = db.collection("users").document(userId)
-        
-        userRef.getDocument { document, error in
-            if let error = error {
-                print("Error fetching user document: \(error.localizedDescription)")
-                return
-            }
-            
-            if let document = document, document.exists {
-                let completedQuizzes = document.data()?["completedQuizzes"] as? [String: Int] ?? [:]
-                if let score = completedQuizzes[collectionId] {
-                    isQuizCompleted = true
-                    //userScore = score
-                }
-            }
-        }
-    }
-}

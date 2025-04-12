@@ -42,24 +42,28 @@ struct ProfileView: View {
                 Text(name)
                     .font(.title)
                 
-                // Lessons Completed & Coupons Redeemed
                 HStack(spacing: 20) {
                     VStack {
-                        Text("Lessons Completed")
+                        Text("Lessons\nCompleted")
                             .font(.headline)
                             .foregroundColor(.gray)
-                            .lineLimit(1)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
                         Text("\(userProgress)")
                             .font(.title3)
                     }
+                    .frame(maxWidth: .infinity)
+
                     VStack {
-                        Text("Redeemed Coupons")
+                        Text("Redeemed\nCoupons")
                             .font(.headline)
                             .foregroundColor(.gray)
-                            .lineLimit(1)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
                         Text("\(redeemedCoupons.count)")
                             .font(.title3)
                     }
+                    .frame(maxWidth: .infinity)
                 }
                 .padding()
                 .background(Color.white)

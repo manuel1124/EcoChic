@@ -96,7 +96,7 @@ struct DiscoverView: View {
                             }) {
                                 Text(category)
                                     .padding(8)
-                                    .background(selectedCategory == category ? Color.blue : Color.white)
+                                    .background(selectedCategory == category ? Color(hex: "#2B4452") : Color.white)
                                     .foregroundColor(selectedCategory == category ? .white : .black)
                                     .cornerRadius(8)
                             }

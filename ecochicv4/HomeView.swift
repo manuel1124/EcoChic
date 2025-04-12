@@ -15,9 +15,9 @@ struct HomeView: View {
     
     let categories = [
         (title: "Eco Shorts", imageName: "Eco Shorts"),
+        (title: "Style Persona", imageName: "Style Persona"),
         (title: "Fact or Fiction", imageName: "Fact or Fiction"),
-        (title: "Blitz Round", imageName: "Blitz Round"),
-        (title: "Style Persona", imageName: "Style Persona")
+        (title: "Blitz Round", imageName: "Blitz Round")
     ]
     
     var body: some View {
@@ -106,8 +106,11 @@ struct HomeView: View {
                 .background(Color(.systemGray6))
                 .onAppear {
                     fetchUserPoints()
-                    fetchStores()
-                    //seedStylePersonaTypes()
+                    fetchStores { fetchedStores in
+                        self.stores = fetchedStores
+                    }
+                    //seedStylePersonaDocument()
+                    //seedStyleQuiz()
                     updateUserStreak { updatedStreak, pointsEarned in
                         DispatchQueue.main.async {
                             self.streak = updatedStreak
@@ -166,59 +169,83 @@ struct HomeView: View {
         }
     }
 
-    func fetchStores() {
+    func fetchStores(completion: @escaping ([Store]) -> Void) {
         let db = Firestore.firestore()
         db.collection("stores").getDocuments { snapshot, error in
             if let error = error {
                 print("Error fetching stores: \(error.localizedDescription)")
+                completion([])
                 return
             }
-
+            
             guard let documents = snapshot?.documents else {
-                print("No store documents found.")
+                print("No documents found")
+                completion([])
                 return
             }
-
-            let fetchedStores: [Store] = documents.compactMap { doc in
+            
+            let stores = documents.compactMap { doc -> Store? in
                 let data = doc.data()
-
+                
+                print("Fetched data:", data) // Debugging print
+                
                 guard let name = data["name"] as? String,
                       let location = data["location"] as? String,
-                      let about = data["about"] as? String,
                       let thumbnailUrl = data["thumbnailUrl"] as? String,
+                      let about = data["about"] as? String,
                       let couponsArray = data["coupons"] as? [[String: Any]] else {
-                    print("Invalid store data for document: \(doc.documentID)")
+                    print("Skipping document due to missing fields")
                     return nil
                 }
-
-                // Safely handle optional map data for coordinates
-                var coordinate: CLLocationCoordinate2D? = nil
+                
+                // Handle optional map data
+                let coordinate: CLLocationCoordinate2D? // ✅ Make it optional
                 if let mapData = data["map"] as? [String: Any],
                    let latitude = mapData["latitude"] as? Double,
                    let longitude = mapData["longitude"] as? Double {
                     coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+                } else {
+                    coordinate = nil
                 }
-
-                let coupons: [Coupon] = couponsArray.compactMap { couponData in
+                
+                let coupons = couponsArray.compactMap { couponData -> Coupon? in
                     guard let id = couponData["id"] as? String,
                           let requiredPoints = couponData["requiredPoints"] as? Int,
                           let discountAmount = couponData["discountAmount"] as? Double else {
-                        print("Invalid coupon data in store: \(name)")
+                        print("Skipping coupon due to missing fields")
                         return nil
                     }
+                    
                     return Coupon(id: id, requiredPoints: requiredPoints, discountAmount: discountAmount)
                 }
-
-                // Return the Store object, passing nil for coordinate if it's unavailable
-                return Store(id: doc.documentID, name: name, location: location, coordinate: coordinate, coupons: coupons, about: about, thumbnailUrl: thumbnailUrl)
+                
+                // ✅ Fetch optional social media fields
+                let website = data["website"] as? String
+                let instagram = data["instagram"] as? String
+                let facebook = data["facebook"] as? String
+                let tiktok = data["tiktok"] as? String
+                
+                print("Adding store: \(name), coordinate: \(coordinate != nil ? "Yes" : "No")")
+                
+                return Store(
+                    id: doc.documentID,
+                    name: name,
+                    location: location,
+                    coordinate: coordinate,
+                    coupons: coupons,
+                    about: about,
+                    thumbnailUrl: thumbnailUrl,
+                    website: website,
+                    instagram: instagram,
+                    tiktok: tiktok,
+                    facebook: facebook
+                )
             }
-
-            DispatchQueue.main.async {
-                self.stores = fetchedStores
-            }
+            
+            print("Final store count: \(stores.count)")
+            completion(stores)
         }
     }
-
 }
 
 struct CategoryBox: View {
@@ -367,98 +394,105 @@ func addNewQuiz() {
 
 //import FirebaseFirestore
 
-/// Call this once to seed the "Style Persona" quiz into Firestore.
-func addStylePersonaQuiz() {
+func seedStylePersonaDocument() {
     let db = Firestore.firestore()
     
-    // 1) Build your question array
-    let quizData: [[String: Any]] = [
-        [
-            "questionText": "When you go shopping, you usually…",
-            "options": [
-                "A) Buy trendy pieces I saw on TikTok.",
-                "B) Thrift or buy from sustainable brands.",
-                "C) Stick to timeless basics that last forever.",
-                "D) I barely shop—I’m all about reworking what I have."
-            ]
-        ],
-        [
-            "questionText": "How often do you clean out your closet?",
-            "options": [
-                "A) Every season to make space for new stuff.",
-                "B) Every few years—I don’t shop that much.",
-                "C) Only when my clothes are worn out.",
-                "D) I constantly upcycle and repurpose pieces!"
-            ]
-        ],
-        [
-            "questionText": "How do you feel about fast fashion?",
-            "options": [
-                "A) It’s cheap and convenient—I can’t resist.",
-                "B) I avoid it whenever possible.",
-                "C) I only buy from ethical brands or secondhand.",
-                "D) I prefer DIY-ing my clothes instead of buying."
-            ]
-        ],
-        [
-            "questionText": "Your dream wardrobe is…",
-            "options": [
-                "A) Full of trendy statement pieces.",
-                "B) A mix of secondhand, reworked, and ethical fashion.",
-                "C) Minimalist and high-quality.",
-                "D) Made up of things I designed or customized myself."
-            ]
-        ]
+    // ▶️ Pick your personality document ID
+    let docID = "FastFashionPersona1"
+    // ▶️ This must match the quizDocID below
+    let quizID = "fastFashionQuiz1"
+    
+    // Build your trait array
+    let typeData: [[String: Any]] = [
+      [
+        "title":       "Fast Fashion Addict 🚨",
+        "description": "We get it—fast fashion is tempting. But let’s slow it down and shop smarter!",
+        "tip":         "Start small: Try one month of no fast fashion purchases. Instead of trends, invest in timeless pieces. Find sustainable alternatives—many ethical brands are just as affordable. 🔗 EcoChic Tip: Check out our beginner’s guide to breaking up with fast fashion!"
+      ],
+      [
+        "title":       "Sustainability Beginner 🌱",
+        "description": "You’re making progress! Let’s keep up the momentum.",
+        "tip":         "Research brands before buying—are they truly sustainable or greenwashing? Try thrifting or secondhand for your next fashion find. Reduce waste: Donate or repurpose clothes instead of tossing them. 🔗 EcoChic Tip: Explore our top tips for sustainable shopping!"
+      ],
+      [
+        "title":       "Conscious Fashion Guru 🌎",
+        "description": "You’re ahead of the game—let’s amplify your impact!",
+        "tip":         "Encourage your friends to adopt sustainable fashion habits. Experiment with renting or swapping clothes instead of buying. Discover ethical fashion innovations—support emerging brands. 🔗 EcoChic Tip: Read our feature on next‑gen sustainable fashion brands!"
+      ]
     ]
     
-    // 2) Write to a fixed document ID "stylePersona"
-    db.collection("quizzes")
-      .document("stylePersona1")
-      .setData(["questions": quizData]) { error in
+    // Build your personality document
+    let personalityData: [String: Any] = [
+      "about":  "Encourages self‑reflection & provides sustainability tips.",
+      "title":  "Are You a Fast Fashion Offender or a Sustainability Star?",
+      "quizID": quizID,
+      "points": 500,
+      "type":   typeData
+    ]
+    
+    // Write (or overwrite) that document
+    db.collection("personalities")
+      .document(docID)
+      .setData(personalityData) { error in
         if let error = error {
-            print("Error adding Style Persona quiz: \(error.localizedDescription)")
+          print("❌ Error seeding fast‑fashion persona doc:", error.localizedDescription)
         } else {
-            print("Style Persona quiz successfully seeded!")
+          print("✅ Fast‑fashion persona doc seeded successfully!")
         }
     }
 }
 
-func seedStylePersonaTypes() {
+/// 2) Seed the corresponding quiz under `quizzes/fastFashionQuiz1`
+func seedStyleQuiz() {
     let db = Firestore.firestore()
-    let docRef = db.collection("personalities").document("Lyey8vsI1pC09VYPch9J")
     
-    // Build your array of trait‑maps
-    let typeData: [[String: Any]] = [
-        [
-            "title": "The Trend Chaser",
-            "description": "You love staying on top of trends, but fast fashion can be wasteful.",
-            "tip": "Try investing in timeless pieces and explore secondhand options!"
-        ],
-        [
-            "title": "The Conscious Shopper",
-            "description": "You’re making mindful choices! Here’s how to level up your sustainability game.",
-            "tip": "Keep discovering new sustainable brands & thrifting gems!"
-        ],
-        [
-            "title": "The Minimalist Stylist",
-            "description": "You’ve mastered the art of a timeless wardrobe—here’s what’s next!",
-            "tip": "Focus on garment care to make your pieces last even longer!"
-        ],
-        [
-            "title": "The Creative Reworker",
-            "description": "You’re a DIY master! Let’s take your skills even further.",
-            "tip": "Share your DIYs with the EcoChic community!"
+    // Must match the quizID above
+    let quizDocID = "fastFashionQuiz1"
+    
+    // Build your question array
+    let quizData: [[String: Any]] = [
+      [
+        "questionText": "How often do you buy new clothes?",
+        "options": [
+          "A) Every week—gotta keep up with trends!",
+          "B) A few times a year, when I need something.",
+          "C) Rarely—I prefer quality over quantity."
         ]
+      ],
+      [
+        "questionText": "Do you know what materials your clothes are made of?",
+        "options": [
+          "A) No idea, I just check the style.",
+          "B) Sometimes, especially for basics.",
+          "C) Always—I check for organic and sustainable fabrics."
+        ]
+      ],
+      [
+        "questionText": "What do you do when you’re bored of your clothes?",
+        "options": [
+          "A) Buy new ones.",
+          "B) Sell or donate them.",
+          "C) Upcycle or swap them with friends."
+        ]
+      ],
+      [
+        "questionText": "Your ideal fashion purchase is…",
+        "options": [
+          "A) Cheap and trendy—fast fashion all the way.",
+          "B) Thrifted or made by an ethical brand.",
+          "C) Handmade, reworked, or vintage."
+        ]
+      ]
     ]
     
-    // Write (or overwrite) the `type` field on that document
-    docRef.updateData([
-        "type": typeData
-    ]) { error in
+    // Write to quizzes collection
+    db.collection("quizzes")
+      .document(quizDocID)
+      .setData(["questions": quizData]) { error in
         if let error = error {
-            print("❌ Failed to seed types:", error.localizedDescription)
+          print("❌ Error seeding fast‑fashion quiz:", error.localizedDescription)
         } else {
-            print("✅ Successfully wrote `type` array to Style Persona document.")
+          print("✅ Fast‑fashion quiz seeded successfully!")
         }
     }
 }

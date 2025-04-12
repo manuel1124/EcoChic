@@ -7,6 +7,9 @@ struct HomeView: View {
     @State private var userPoints: Int = 0
     @State private var stores: [Store] = []  // Store full objects instead of tuples
     @State private var streak: Int = 0
+    
+    @State private var showPointsPopup: Bool = false
+    @State private var newPointsEarned: Int = 0
 
     let columns = [GridItem(.flexible()), GridItem(.flexible())]
     
@@ -14,22 +17,20 @@ struct HomeView: View {
         (title: "Eco Shorts", imageName: "Eco Shorts"),
         (title: "Fact or Fiction", imageName: "Fact or Fiction"),
         (title: "Blitz Round", imageName: "Blitz Round"),
-        //(title: "Green Choices", imageName: "Green Choices"),
-        //(title: "Tag Check", imageName: "Tag Check"),
         (title: "Style Persona", imageName: "Style Persona")
     ]
+    
     var body: some View {
-            NavigationStack {
+        NavigationStack {
+            ZStack {
+                // Main content
                 ScrollView(.vertical, showsIndicators: false) { // Make everything scrollable
                     VStack(alignment: .leading, spacing: 16) {
                         HStack {
                             Text("Home")
                                 .font(.title)
                                 .bold()
-                                //.padding()
-
                             Spacer()
-
                             HStack(spacing: 4) {
                                 Image("points logo") // Use your asset image
                                     .resizable()
@@ -44,18 +45,13 @@ struct HomeView: View {
                             .cornerRadius(10)
                         }
                         .padding([.top, .leading, .trailing])
-
-                        ScrollView(.vertical, showsIndicators: false) {
-                            VStack(alignment: .leading, spacing: 16) {
-                                StreakBoxView(streak: streak)
-                            }
-                        }
-
-
+                        
+                        StreakBoxView(streak: streak)
+                        
                         Text("Your favourite stores")
                             .font(.headline)
                             .padding(.leading, 25)
-
+                        
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 12) {
                                 ForEach(stores) { store in
@@ -80,35 +76,74 @@ struct HomeView: View {
                             .padding(.trailing, 10)
                         }
                         .frame(height: 80)
-
+                        
                         Text("Categories")
                             .font(.headline)
                             .padding(.leading, 25)
-
+                        
                         LazyVGrid(columns: columns, spacing: 0) {
-                            ForEach(categories, id: \.title) { category in
-                                NavigationLink(destination: category.title == "Eco Shorts" ? AnyView(LearnView().navigationBarBackButtonHidden(true)) : AnyView(ComingSoonView())) {
-                                    CategoryBox(imageName: category.imageName)
-                                }
+                          ForEach(categories, id: \.title) { category in
+                            NavigationLink {
+                              // destination builder
+                              if category.title == "Eco Shorts" {
+                                LearnView()
+                                  .navigationBarBackButtonHidden(true)
+                              } else if category.title == "Style Persona" {
+                                StylePersonaQuizView()
+                                  .navigationBarBackButtonHidden(true)
+                              } else {
+                                ComingSoonView()
+                              }
+                            } label: {
+                              CategoryBox(imageName: category.imageName)
                             }
+                          }
                         }
                         .padding(.horizontal)
                     }
                     .padding(.bottom, 20) // Extra padding at bottom for smooth scrolling
                 }
+                .background(Color(.systemGray6))
                 .onAppear {
                     fetchUserPoints()
-                    //addNewStoreWithCoupons()
                     fetchStores()
-                    updateUserStreak { updatedStreak in
-                            DispatchQueue.main.async {
-                                self.streak = updatedStreak
+                    //seedStylePersonaTypes()
+                    updateUserStreak { updatedStreak, pointsEarned in
+                        DispatchQueue.main.async {
+                            self.streak = updatedStreak
+                            if pointsEarned > 0 {
+                                self.newPointsEarned = pointsEarned
+                                self.showPointsPopup = true
+                                self.userPoints += pointsEarned
                             }
                         }
+                    }
                 }
-                .background(Color(.systemGray6))
+                
+                // The overlay popup, centered on the screen:
+                if showPointsPopup {
+                    ZStack {
+                        Color.black.opacity(0.4)
+                            .ignoresSafeArea()
+                        
+                        PointsEarnedPopupView(streak: streak, pointsEarned: newPointsEarned) {
+                            withAnimation {
+                                self.showPointsPopup = false
+                            }
+                        }
+                        .padding(40)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                        
+                        // Add the confetti effect; it can be placed behind or in front of your popup.
+                        ConfettiView()
+                            .allowsHitTesting(false) // so it doesn't intercept taps
+                    }
+                    .transition(.opacity)
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
     
     func fetchUserPoints() {
         guard let user = Auth.auth().currentUser else { return }
@@ -186,95 +221,6 @@ struct HomeView: View {
 
 }
 
-struct StreakBoxView: View {
-    var streak: Int
-    @State private var showInfo = false
-
-    private var nextMilestone: Int {
-        return streak < 5 ? 5 : 15
-    }
-
-    private var milestonePoints: Int {
-        return nextMilestone == 5 ? 1000 : 5000
-    }
-
-    private var dotRange: [Int] {
-        return streak < 5 ? Array(0...5) : Array(5...15)
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Header
-            HStack {
-                Text("\(streak) Day Streak")
-                    .font(.headline)
-                    .bold()
-                
-                Spacer()
-                
-                // Info bubble toggle button (top-right)
-                HStack {
-                    Spacer()
-                    Button(action: {
-                        withAnimation {
-                            showInfo.toggle()
-                        }
-                    }) {
-                        Image(systemName: "info.circle")
-                            .foregroundColor(.black)
-                            .padding(.trailing, 4)
-                    }
-                }
-            }
-
-            // Dots with background bar and info button
-            GeometryReader { geometry in
-                let dotSize: CGFloat = 14
-                let spacing = (geometry.size.width - (dotSize * CGFloat(dotRange.count))) / CGFloat(dotRange.count - 1)
-
-                ZStack(alignment: .leading) {
-                    // Background bar
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.green.opacity(0.15))
-                        .frame(height: 28)
-
-                    // Dots
-                    HStack(spacing: spacing) {
-                        ForEach(dotRange, id: \.self) { day in
-                            Circle()
-                                .fill(day <= streak ? Color.green : Color.gray)
-                                .frame(width: dotSize, height: dotSize)
-                        }
-                    }
-
-                }
-            }
-            .frame(height: 28)
-
-            // Expandable info bubble
-            if showInfo {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Earn 100 points every day you continue your streak, and earn even more points for reaching milestones!")
-                    Text(" ")
-                    Text("Reach day \(nextMilestone) to earn a bonus \(milestonePoints) points.")
-                }
-                .font(.subheadline)
-                //.padding(10)
-                //.background(Color.green.opacity(0.1))
-                .cornerRadius(8)
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-        }
-        .padding()
-        .frame(maxWidth: .infinity)
-        .background(Color.white)
-        .cornerRadius(16)
-        .shadow(color: .gray.opacity(0.3), radius: 5, x: 0, y: 2)
-        .padding(.horizontal)
-    }
-}
-
-
 struct CategoryBox: View {
     let imageName: String
     
@@ -293,79 +239,20 @@ struct CategoryBox: View {
     }
 }
 
-func updateUserStreak(completion: @escaping (Int) -> Void) {
-    guard let user = Auth.auth().currentUser else { return }
-    let db = Firestore.firestore()
-    let userRef = db.collection("users").document(user.uid)
-    
-    userRef.getDocument { snapshot, error in
-        if let error = error {
-            print("Error fetching user data: \(error.localizedDescription)")
-            completion(0)
-            return
+struct ComingSoonView: View {
+    var body: some View {
+        VStack {
+            Spacer()
+            Text("Coming Soon")
+                .font(.title)
+                .bold()
+                .foregroundColor(.gray)
+            Spacer()
         }
-        
-        guard let data = snapshot?.data(),
-              let lastLogin = data["lastLogin"] as? Timestamp,
-              let streak = data["streak"] as? Int,
-              var points = data["points"] as? Int else {
-            print("No last login found, initializing streak and points.")
-            userRef.setData(["streak": 1, "lastLogin": Timestamp(date: Date()), "points": 100], merge: true)
-            completion(1)
-            return
-        }
-        
-        let lastLoginDate = lastLogin.dateValue()
-        let currentDate = Date()
-        let calendar = Calendar.current
-
-        let lastLoginDay = calendar.startOfDay(for: lastLoginDate)
-        let currentDay = calendar.startOfDay(for: currentDate)
-        
-        let daysDifference = calendar.dateComponents([.day], from: lastLoginDay, to: currentDay).day ?? 0
-        
-        if daysDifference == 1 {
-            // User logged in on the next day, increase streak
-            var newStreak = streak + 1
-            var dailyPoints = 100
-
-            // Check for milestone bonuses
-            if newStreak == 5 {
-                dailyPoints += 1000 // Bonus for reaching day 5
-            } else if newStreak == 15 {
-                dailyPoints += 5000 // Bonus for reaching day 15
-            }
-
-            points += dailyPoints // Add the earned points
-
-            userRef.updateData([
-                "streak": newStreak,
-                "lastLogin": Timestamp(date: currentDate),
-                "points": points
-            ]) { error in
-                if let error = error {
-                    print("Error updating streak: \(error.localizedDescription)")
-                }
-            }
-            completion(newStreak)
-        } else if daysDifference > 1 {
-            // User missed a day, reset streak
-            userRef.updateData([
-                "streak": 0,
-                "lastLogin": Timestamp(date: currentDate)
-            ]) { error in
-                if let error = error {
-                    print("Error resetting streak: \(error.localizedDescription)")
-                }
-            }
-            completion(0)
-        } else {
-            // User already logged in today, do nothing
-            completion(streak)
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.white)
     }
 }
-
 
 // Functions to add new items in firestore
 
@@ -441,17 +328,137 @@ func addNewVideoWithQuiz() {
     }
 }
 
-struct ComingSoonView: View {
-    var body: some View {
-        VStack {
-            Spacer()
-            Text("Coming Soon")
-                .font(.title)
-                .bold()
-                .foregroundColor(.gray)
-            Spacer()
+func addNewQuiz() {
+    let db = Firestore.firestore()
+    
+    // Prepare the quiz data as an array of dictionaries.
+    let quizData: [[String: Any]] = [
+        [
+            "questionText": "What is the capital of France?",
+            "options": ["Paris", "London", "Berlin", "Madrid"],
+            "correctAnswer": "Paris"
+        ],
+        [
+            "questionText": "What is the capital of Alberta?",
+            "options": ["Calgary", "Edmonton", "Red Deer", "Grande Prairie"],
+            "correctAnswer": "Edmonton"
+        ],
+        [
+            "questionText": "What is the best University in Alberta?",
+            "options": ["UofA", "UofC", "UofL", "UBC"],
+            "correctAnswer": "UofA"
+        ],
+        [
+            "questionText": "Which planet is known as the Red Planet?",
+            "options": ["Earth", "Mars", "Jupiter", "Venus"],
+            "correctAnswer": "Mars"
+        ]
+    ]
+    
+    // Add a new document to the "quizzes" collection with the quiz data.
+    db.collection("quizzes").addDocument(data: ["questions": quizData]) { error in
+        if let error = error {
+            print("Error adding quiz: \(error.localizedDescription)")
+        } else {
+            print("New quiz added successfully!")
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.white)
+    }
+}
+
+//import FirebaseFirestore
+
+/// Call this once to seed the "Style Persona" quiz into Firestore.
+func addStylePersonaQuiz() {
+    let db = Firestore.firestore()
+    
+    // 1) Build your question array
+    let quizData: [[String: Any]] = [
+        [
+            "questionText": "When you go shopping, you usually…",
+            "options": [
+                "A) Buy trendy pieces I saw on TikTok.",
+                "B) Thrift or buy from sustainable brands.",
+                "C) Stick to timeless basics that last forever.",
+                "D) I barely shop—I’m all about reworking what I have."
+            ]
+        ],
+        [
+            "questionText": "How often do you clean out your closet?",
+            "options": [
+                "A) Every season to make space for new stuff.",
+                "B) Every few years—I don’t shop that much.",
+                "C) Only when my clothes are worn out.",
+                "D) I constantly upcycle and repurpose pieces!"
+            ]
+        ],
+        [
+            "questionText": "How do you feel about fast fashion?",
+            "options": [
+                "A) It’s cheap and convenient—I can’t resist.",
+                "B) I avoid it whenever possible.",
+                "C) I only buy from ethical brands or secondhand.",
+                "D) I prefer DIY-ing my clothes instead of buying."
+            ]
+        ],
+        [
+            "questionText": "Your dream wardrobe is…",
+            "options": [
+                "A) Full of trendy statement pieces.",
+                "B) A mix of secondhand, reworked, and ethical fashion.",
+                "C) Minimalist and high-quality.",
+                "D) Made up of things I designed or customized myself."
+            ]
+        ]
+    ]
+    
+    // 2) Write to a fixed document ID "stylePersona"
+    db.collection("quizzes")
+      .document("stylePersona1")
+      .setData(["questions": quizData]) { error in
+        if let error = error {
+            print("Error adding Style Persona quiz: \(error.localizedDescription)")
+        } else {
+            print("Style Persona quiz successfully seeded!")
+        }
+    }
+}
+
+func seedStylePersonaTypes() {
+    let db = Firestore.firestore()
+    let docRef = db.collection("personalities").document("Lyey8vsI1pC09VYPch9J")
+    
+    // Build your array of trait‑maps
+    let typeData: [[String: Any]] = [
+        [
+            "title": "The Trend Chaser",
+            "description": "You love staying on top of trends, but fast fashion can be wasteful.",
+            "tip": "Try investing in timeless pieces and explore secondhand options!"
+        ],
+        [
+            "title": "The Conscious Shopper",
+            "description": "You’re making mindful choices! Here’s how to level up your sustainability game.",
+            "tip": "Keep discovering new sustainable brands & thrifting gems!"
+        ],
+        [
+            "title": "The Minimalist Stylist",
+            "description": "You’ve mastered the art of a timeless wardrobe—here’s what’s next!",
+            "tip": "Focus on garment care to make your pieces last even longer!"
+        ],
+        [
+            "title": "The Creative Reworker",
+            "description": "You’re a DIY master! Let’s take your skills even further.",
+            "tip": "Share your DIYs with the EcoChic community!"
+        ]
+    ]
+    
+    // Write (or overwrite) the `type` field on that document
+    docRef.updateData([
+        "type": typeData
+    ]) { error in
+        if let error = error {
+            print("❌ Failed to seed types:", error.localizedDescription)
+        } else {
+            print("✅ Successfully wrote `type` array to Style Persona document.")
+        }
     }
 }

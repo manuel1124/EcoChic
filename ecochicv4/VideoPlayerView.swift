@@ -5,38 +5,25 @@ import FirebaseFirestore
 
 struct VideoPlayerView: View {
     let video: Video
-    @State private var isQuizEnabled = false
+    
+    @State private var quizQuestions: [QuizQuestion] = []
+    @State private var isQuizEnabled   = false
     @State private var isQuizCompleted = false
     @State private var userScore: Int? = nil
-    @State private var userId = Auth.auth().currentUser?.uid
     @State private var userPoints: Int = 0
-    @Environment(\.presentationMode) var presentationMode // Allows dismissing the view
-
+    @State private var userId = Auth.auth().currentUser?.uid
+    @Environment(\.dismiss) private var dismiss
+    
     var body: some View {
         VStack(alignment: .leading) {
-            HStack {
-                Text(video.title)
-                    .font(.title)
-                    .padding()
-                    .bold()
-                
-                Spacer()
-                
-                HStack(spacing: 4) {
-                    Image("points logo") // Use your asset image
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 20, height: 20) // Adjust size as needed
-                    Text("\(userPoints)")
-                        .font(.headline)
-                        .bold()
-                        .foregroundColor(.black)
-                }
-                .padding(10)
-                .cornerRadius(10)
-            }
-            .padding([.top, .leading, .trailing])
-
+            Text(video.title)
+                .font(.title2)
+                .bold()
+                // Make the Text take up all available width and center its contents:
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding()
+                .padding(.top, 10)
+            
             YouTubePlayer(videoID: extractYouTubeID(from: video.videoURL), onVideoFinished: {
                 isQuizEnabled = true
             })
@@ -51,14 +38,15 @@ struct VideoPlayerView: View {
                 .padding(.top, 10)
                 .padding(.horizontal, 20)
             
-
+            
             HStack(spacing: 8) {
                 
                 Image(systemName: "flame.fill")
                     .foregroundColor(.orange)
-                Text("\(video.quiz.count)")
+                Text("\(quizQuestions.count)")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
+                
                 
                 Image(systemName: "clock.fill")
                     .foregroundColor(.blue)
@@ -78,8 +66,8 @@ struct VideoPlayerView: View {
             }
             .padding(.top)
             .padding(.horizontal)
-                
-                
+            
+            
             if isQuizCompleted {
                 Text("Quiz Completed!")
                     .font(.title)
@@ -93,10 +81,16 @@ struct VideoPlayerView: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
                 Spacer()
-                goBackButton
+                //goBackButton
             } else {
                 if isQuizEnabled {
-                    NavigationLink(destination: QuizView(quiz: video.quiz, videoId: video.id, videoPoints: video.points)) {
+                    NavigationLink(
+                        destination: QuizView(
+                            quiz: quizQuestions,
+                            collectionId: video.id,
+                            collectionPoints: video.points
+                        )
+                    ) {
                         Text("Start Quiz")
                             .padding()
                             .frame(maxWidth: .infinity)
@@ -116,7 +110,7 @@ struct VideoPlayerView: View {
                         .opacity(0.7)
                 }
                 Spacer()
-                goBackButton
+                //goBackButton
             }
         }
         .navigationBarBackButtonHidden(true) // Hides default back button
@@ -124,41 +118,24 @@ struct VideoPlayerView: View {
         .onAppear {
             checkIfQuizAttempted()
             fetchUserPoints()
+            fetchQuizQuestions()
         }
     }
     
-    private var goBackButton: some View {
-        HStack {
-            Button(action: {
-                presentationMode.wrappedValue.dismiss()
-            }) {
-                Image(systemName: "arrow.left")
-                    .font(.title)
-                    .foregroundColor(.gray)
-                    .padding(.leading, 40)
-                    .padding(.bottom, 10) // Moves the arrow UP
-            }
-            Spacer()
-        }
-        .frame(maxHeight: 50) // Allows movement without restricting too much
-        .padding(.bottom, 10) // Moves the entire HStack lower
-        .background(.clear)
-    }
-
     private func checkIfQuizAttempted() {
         guard let userId = userId else { return }
         let db = Firestore.firestore()
         let userRef = db.collection("users").document(userId)
-
+        
         userRef.getDocument { document, error in
             if let error = error {
                 print("Error fetching user document: \(error.localizedDescription)")
                 return
             }
-
+            
             if let document = document, document.exists {
                 let completedQuizzes = document.data()?["completedQuizzes"] as? [String: Int] ?? [:]
-
+                
                 DispatchQueue.main.async {
                     if let score = completedQuizzes[video.id] {
                         isQuizCompleted = true
@@ -194,6 +171,39 @@ struct VideoPlayerView: View {
             
             self.userPoints = points  // Update the user points
         }
+    }
+    
+    private func fetchQuizQuestions() {
+        let db = Firestore.firestore()
+        db.collection("quizzes")
+            .document(video.quizID)
+            .getDocument { snapshot, error in
+                guard
+                    error == nil,
+                    let data = snapshot?.data(),
+                    let raw = data["questions"] as? [[String:Any]]
+                else {
+                    print("Failed to load quiz for ID \(video.quizID):", error ?? "")
+                    return
+                }
+                
+                let questions: [QuizQuestion] = raw.compactMap { dict in
+                    guard
+                        let text   = dict["questionText"] as? String,
+                        let opts   = dict["options"] as? [String],
+                        let correct = dict["correctAnswer"] as? String
+                    else { return nil }
+                    return QuizQuestion(
+                        questionText: text,
+                        options:      opts,
+                        correctAnswer: correct
+                    )
+                }
+                
+                DispatchQueue.main.async {
+                    self.quizQuestions = questions
+                }
+            }
     }
 }
 
@@ -325,254 +335,4 @@ func extractYouTubeID(from url: String) -> String {
         }
     }
     return url.replacingOccurrences(of: "https://www.youtube.com/watch?v=", with: "")
-}
-
-struct QuizView: View {
-    let quiz: [QuizQuestion]
-    let videoId: String
-    let videoPoints: Int
-    @State private var currentQuestionIndex = 0
-    @State private var correctAnswers = 0
-    @State private var isQuizCompleted = false
-    @State private var userId = Auth.auth().currentUser?.uid
-    @State private var userScore: Int?
-    @State private var isRetakePromptVisible = false
-    @State private var selectedAnswers: [Int: String] = [:]  // Track selected options
-    @Environment(\.presentationMode) var presentationMode  // For manual back navigation
-
-    var body: some View {
-        VStack {
-            if isQuizCompleted {
-                Text("Quiz Completed!")
-                    .font(.title)
-                    .foregroundColor(.green)
-                    .padding()
-
-                if let score = userScore {
-                    Text("Your Score: \(score)%")
-                        .font(.headline)
-                        .padding()
-                }
-
-                Button(action: { presentationMode.wrappedValue.dismiss() }) {
-                    Text("Go Back")
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color.gray.opacity(0.2))
-                        .foregroundColor(.black)
-                        .cornerRadius(8)
-                        .padding(.horizontal)
-                }
-            } else if isRetakePromptVisible {
-                VStack {
-                    Text("Your Score: \(correctAnswers * 100 / quiz.count)%")
-                        .font(.title)
-                        .foregroundColor(.red)
-                        .padding()
-
-                    Text("You need 80% to complete the quiz.")
-                        .font(.headline)
-                        .padding()
-
-                    Button(action: resetQuiz) {
-                        Text("Retake Quiz")
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color(hex: "#48CB64"))
-                            .foregroundColor(.white)
-                            .cornerRadius(8)
-                            .padding(.horizontal)
-                    }
-
-                    Button(action: { presentationMode.wrappedValue.dismiss() }) {
-                        Text("Go Back")
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color.gray.opacity(0.2))
-                            .foregroundColor(.black)
-                            .cornerRadius(8)
-                            .padding(.horizontal)
-                    }
-                }
-            } else {
-                VStack {
-                    Text("Question \(currentQuestionIndex + 1) of \(quiz.count)")
-                        .font(.headline)
-                        .padding()
-
-                    if currentQuestionIndex < quiz.count {
-                        Text(quiz[currentQuestionIndex].questionText)
-                            .font(.title)
-                            .padding()
-                        
-                        ForEach(quiz[currentQuestionIndex].options, id: \.self) { option in
-                            Button(action: {
-                                selectedAnswers[currentQuestionIndex] = option
-                            }) {
-                                Text(option)
-                                    .padding()
-                                    .frame(maxWidth: .infinity)
-                                    .background(selectedAnswers[currentQuestionIndex] == option ? Color.blue : Color.gray.opacity(0.2))
-                                    .foregroundColor(selectedAnswers[currentQuestionIndex] == option ? .white : .black)
-                                    .cornerRadius(8)
-                                    .padding(.horizontal)
-                            }
-                        }
-                        // Automatically go to the next question
-                        /*
-                        ForEach(quiz[currentQuestionIndex].options, id: \.self) { option in
-                            Button(action: {
-                                selectedAnswers[currentQuestionIndex] = option
-                                if currentQuestionIndex < quiz.count - 1 {
-                                    currentQuestionIndex += 1  // Move to next question automatically
-                                }
-                            }) {
-                                Text(option)
-                                    .padding()
-                                    .frame(maxWidth: .infinity)
-                                    .background(selectedAnswers[currentQuestionIndex] == option ? Color.blue : Color.gray.opacity(0.2))
-                                    .foregroundColor(selectedAnswers[currentQuestionIndex] == option ? .white : .black)
-                                    .cornerRadius(8)
-                                    .padding(.horizontal)
-                            }
-                        }
-                         */
-
-                    }
-
-                    Spacer()
-
-                    HStack {
-                        Button(action: {
-                            if currentQuestionIndex > 0 {
-                                currentQuestionIndex -= 1
-                            }
-                        }) {
-                            Image(systemName: "arrow.left")
-                                .padding()
-                                .foregroundColor(currentQuestionIndex > 0 ? .blue : .clear)
-                        }
-                        .disabled(currentQuestionIndex == 0)
-
-                        Spacer()
-
-                        Button(action: {
-                            presentationMode.wrappedValue.dismiss()
-                        }) {
-                            Text("CANCEL")
-                                .font(.headline)
-                                .foregroundColor(.red)
-                        }
-
-                        Spacer()
-
-                        Button(action: completeQuiz) {
-                            Text("SUBMIT")
-                                .font(.headline)
-                                .foregroundColor(.green)
-                        }
-
-                        Spacer()
-
-                        Button(action: {
-                            if currentQuestionIndex < quiz.count - 1 {
-                                currentQuestionIndex += 1
-                            }
-                        }) {
-                            Image(systemName: "arrow.right")
-                                .padding()
-                                .foregroundColor(currentQuestionIndex < quiz.count - 1 ? .blue : .clear)
-                        }
-                        .disabled(currentQuestionIndex >= quiz.count - 1)
-                    }
-                    .padding()
-                }
-            }
-        }
-        .navigationBarBackButtonHidden(true)
-        .navigationTitle("Quiz")
-        .onAppear {
-            checkIfQuizAttempted()
-        }
-    }
-
-    private func completeQuiz() {
-        correctAnswers = quiz.indices.reduce(0) { count, index in
-            count + (selectedAnswers[index] == quiz[index].correctAnswer ? 1 : 0)
-        }
-
-        let calculatedScore = (correctAnswers * 100) / quiz.count
-        userScore = calculatedScore
-
-        if calculatedScore >= 80 {
-            isQuizCompleted = true
-            updateFirestoreScore(calculatedScore)
-        } else {
-            isRetakePromptVisible = true
-        }
-    }
-
-    private func resetQuiz() {
-        currentQuestionIndex = 0
-        correctAnswers = 0
-        selectedAnswers = [:]
-        isRetakePromptVisible = false
-    }
-    
-    private func updateFirestoreScore(_ score: Int) {
-        guard let userId = userId else { return }
-        let db = Firestore.firestore()
-        let userRef = db.collection("users").document(userId)
-        
-        userRef.getDocument { document, error in
-            if let error = error {
-                print("Error fetching user document: \(error.localizedDescription)")
-                return
-            }
-            
-            if let document = document, document.exists {
-                var completedQuizzes = document.data()?["completedQuizzes"] as? [String: Int] ?? [:]
-                var currentPoints = document.data()?["points"] as? Int ?? 0
-                
-                if completedQuizzes[videoId] == nil {
-                    currentPoints += videoPoints
-                }
-                
-                completedQuizzes[videoId] = score
-                
-                userRef.updateData([
-                    "completedQuizzes": completedQuizzes,
-                    "points": currentPoints,
-                    "progress": completedQuizzes.keys.count
-                ]) { error in
-                    if let error = error {
-                        print("Error updating user progress: \(error.localizedDescription)")
-                    } else {
-                        print("User progress and points updated successfully!")
-                    }
-                }
-            }
-        }
-    }
-    
-    private func checkIfQuizAttempted() {
-        guard let userId = userId else { return }
-        let db = Firestore.firestore()
-        let userRef = db.collection("users").document(userId)
-        
-        userRef.getDocument { document, error in
-            if let error = error {
-                print("Error fetching user document: \(error.localizedDescription)")
-                return
-            }
-            
-            if let document = document, document.exists {
-                let completedQuizzes = document.data()?["completedQuizzes"] as? [String: Int] ?? [:]
-                if let score = completedQuizzes[videoId] {
-                    isQuizCompleted = true
-                    userScore = score
-                }
-            }
-        }
-    }
 }

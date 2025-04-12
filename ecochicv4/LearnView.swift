@@ -17,15 +17,18 @@ struct Video: Identifiable {
     let duration: String
     let videoURL: String
     let thumbnailURL: String
-    let quiz: [QuizQuestion]
+    //let quiz: [QuizQuestion]
+    let quizID: String
     let points: Int
 }
-
 
 struct LearnView: View {
     @Environment(\.presentationMode) var presentationMode
     @State private var videos: [Video] = []
     @State private var userPoints: Int = 0
+
+    // NEW: track which video is selected for playback
+    @State private var selectedVideo: Video? = nil
 
     var body: some View {
         NavigationView {
@@ -40,10 +43,10 @@ struct LearnView: View {
                         Spacer()
 
                         HStack(spacing: 4) {
-                            Image("points logo") // Use your asset image
+                            Image("points logo")
                                 .resizable()
                                 .scaledToFit()
-                                .frame(width: 20, height: 20) // Adjust size as needed
+                                .frame(width: 20, height: 20)
                             Text("\(userPoints)")
                                 .font(.headline)
                                 .bold()
@@ -58,21 +61,26 @@ struct LearnView: View {
                     ScrollView(.vertical, showsIndicators: false) {
                         VStack(spacing: 16) {
                             ForEach(videos) { video in
-                                NavigationLink(destination: VideoPlayerView(video: video)) {
+                                // REPLACE NavigationLink with a Button that sets selectedVideo
+                                Button(action: {
+                                    selectedVideo = video
+                                }) {
                                     VideoRow(video: video)
                                 }
+                                .buttonStyle(PlainButtonStyle()) // so it looks like your row
                             }
                         }
                         .padding()
                     }
                     .simultaneousGesture(DragGesture().onEnded { gesture in
-                        if gesture.translation.width > 50 { // Detect right swipe
+                        if gesture.translation.width > 50 {
                             presentationMode.wrappedValue.dismiss()
                         }
-                    }) // Allows both scrolling and swipe gestures
-                    
-                    Spacer() // Pushes footer to the bottom
-                    
+                    })
+
+                    Spacer()
+
+                    // Footer back button
                     HStack {
                         Button(action: {
                             presentationMode.wrappedValue.dismiss()
@@ -81,27 +89,38 @@ struct LearnView: View {
                                 .font(.title)
                                 .foregroundColor(.gray)
                                 .padding(.leading, 40)
-                                .padding(.bottom, 20) // Moves the arrow UP
+                                .padding(.bottom, 20)
                         }
                         Spacer()
                     }
-                    .frame(maxHeight: 50) // Allows movement without restricting too much
-                    .padding(.bottom, 10) // Moves the entire HStack lower
-                    .background(.clear)
+                    .frame(maxHeight: 50)
+                    .padding(.bottom, 10)
+                    .background(Color.clear)
                 }
                 .toolbar(.hidden, for: .tabBar)
                 .onAppear {
                     fetchVideos()
-                    fetchUserPoints()  // Fetch user points when the view appears
+                    fetchUserPoints()
                 }
                 .background(Color(.systemGray6))
             }
             .ignoresSafeArea(edges: .bottom)
             .simultaneousGesture(DragGesture().onEnded { gesture in
-                if gesture.translation.width > 50 { // Detect right swipe
+                if gesture.translation.width > 50 {
                     presentationMode.wrappedValue.dismiss()
                 }
             })
+            .sheet(item: $selectedVideo,
+                   onDismiss: {
+                       fetchUserPoints()
+                       fetchVideos()     // ← reload all videos, which re‑triggers each row’s check
+                   }
+            ) { video in
+                NavigationStack {
+                    VideoPlayerView(video: video)
+                }
+                .presentationDetents([.height(500), .large])
+            }
         }
     }
     
@@ -109,45 +128,35 @@ struct LearnView: View {
         let db = Firestore.firestore()
         db.collection("videos").getDocuments { snapshot, error in
             if let error = error {
-                print("Error fetching videos: \(error.localizedDescription)")
+                print("Error fetching videos: \(error)")
                 return
             }
-            
             guard let documents = snapshot?.documents else { return }
-            
+
             self.videos = documents.compactMap { doc in
                 let data = doc.data()
-                
-                guard let title = data["title"] as? String,
-                      let about = data["about"] as? String, // Fetch about field
-                      let duration = data["duration"] as? String,
-                      let videoURL = data["url"] as? String,
-                      let thumbnailURL = data["thumbnailUrl"] as? String,
-                      let quizData = data["quiz"] as? [[String: Any]] else {
-                    print("Skipping video due to missing or invalid fields")
+                guard
+                    let title        = data["title"]        as? String,
+                    let about        = data["about"]        as? String,
+                    let duration     = data["duration"]     as? String,
+                    let videoURL     = data["url"]          as? String,
+                    let thumbnailURL = data["thumbnailUrl"] as? String,
+                    let quizID       = data["quizID"]       as? String,
+                    let points       = data["points"]       as? Int
+                else {
+                    print("Skipping video due to missing fields")
                     return nil
                 }
-                
-                let points = data["points"] as? Int ?? 0
-                let quizQuestions = quizData.compactMap { q -> QuizQuestion? in
-                    guard let questionText = q["questionText"] as? String,
-                          let options = q["options"] as? [String],
-                          let correctAnswer = q["correctAnswer"] as? String else {
-                        print("Skipping a quiz question due to missing fields")
-                        return nil
-                    }
-                    return QuizQuestion(questionText: questionText, options: options, correctAnswer: correctAnswer)
-                }
-                
+
                 return Video(
-                    id: doc.documentID,
-                    title: title,
-                    about: about, // Store about field
-                    duration: duration,
-                    videoURL: videoURL,
+                    id:           doc.documentID,
+                    title:        title,
+                    about:        about,
+                    duration:     duration,
+                    videoURL:     videoURL,
                     thumbnailURL: thumbnailURL,
-                    quiz: quizQuestions,
-                    points: points
+                    quizID:       quizID,
+                    points:       points
                 )
             }
         }
@@ -177,6 +186,8 @@ struct LearnView: View {
 struct VideoRow: View {
     let video: Video
     @State private var isQuizCompleted = false
+    @State private var questionCount: Int = 0
+    @State private var completionListener: ListenerRegistration? = nil
     
     var body: some View {
         VStack {
@@ -232,7 +243,7 @@ struct VideoRow: View {
                     HStack(spacing: 8) {
                         Image(systemName: "flame.fill")
                             .foregroundColor(.orange)
-                        Text("\(video.quiz.count)")
+                        Text("\(questionCount)")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         
@@ -242,7 +253,7 @@ struct VideoRow: View {
                             .font(.subheadline)
                             .foregroundColor(.secondary)
 
-                        Spacer() 
+                        Spacer()
 
                         Image(systemName: isQuizCompleted ? "checkmark.circle.fill" : "checkmark.circle")
                             .foregroundColor(isQuizCompleted ? .green : .gray)
@@ -255,30 +266,49 @@ struct VideoRow: View {
         .cornerRadius(12)
         .shadow(color: Color.gray.opacity(0.2), radius: 2, x: 0, y: 1)
         .onAppear {
-            checkIfQuizCompleted()
-        }
-    }
-
-
-    
-    private func checkIfQuizCompleted() {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
-        let db = Firestore.firestore()
-        let userRef = db.collection("users").document(userId)
-        
-        userRef.getDocument { document, error in
-            if let error = error {
-                print("Error fetching user document: \(error.localizedDescription)")
-                return
-            }
-            
-            if let document = document, document.exists {
-                let completedQuizzes = document.data()?["completedQuizzes"] as? [String: Int] ?? [:]
-                
-                DispatchQueue.main.async {
-                    isQuizCompleted = completedQuizzes[video.id] != nil
+                    fetchQuestionCount()
+                    startListeningForCompletion()
                 }
-            }
-        }
+                .onDisappear {
+                    // Tear down the listener when the row scrolls off‑screen
+                    completionListener?.remove()
+                }
     }
-}
+
+    private func fetchQuestionCount() {
+           let db = Firestore.firestore()
+           db.collection("quizzes")
+             .document(video.quizID)
+             .getDocument { snapshot, error in
+               guard
+                 error == nil,
+                 let data = snapshot?.data(),
+                 let raw = data["questions"] as? [[String:Any]]
+               else { return }
+               DispatchQueue.main.async {
+                   self.questionCount = raw.count
+               }
+           }
+       }
+
+       private func startListeningForCompletion() {
+           guard let uid = Auth.auth().currentUser?.uid else { return }
+           let userDoc = Firestore.firestore()
+               .collection("users")
+               .document(uid)
+
+           // Attach a snapshot listener
+           completionListener = userDoc.addSnapshotListener { snapshot, error in
+               guard
+                   error == nil,
+                   let data = snapshot?.data(),
+                   let completed = data["completedQuizzes"] as? [String: Int]
+               else { return }
+
+               DispatchQueue.main.async {
+                   // Flip the checkmark on/off as soon as Firestore changes
+                   self.isQuizCompleted = (completed[video.id] != nil)
+               }
+           }
+       }
+   }

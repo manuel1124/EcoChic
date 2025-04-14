@@ -16,6 +16,8 @@ struct SignUpView: View {
     @State private var emailAlreadyExistsError: String? = nil
     @State private var showVerificationAlert: Bool = false
     @State private var showSignInView: Bool = false
+    @State private var referralCode: String = ""
+
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -76,6 +78,12 @@ struct SignUpView: View {
                     .cornerRadius(10)
                     .onChange(of: confirmPassword) { checkPasswordsMatch() }
                 
+                TextField("Referral Code (Optional)", text: $referralCode)
+                    .padding()
+                    .background(Color.gray.opacity(0.2))
+                    .cornerRadius(10)
+
+                
                 if let error = passwordError {
                     Text(error)
                         .font(.footnote)
@@ -115,7 +123,42 @@ struct SignUpView: View {
             Spacer()
         }
         .padding()
+        
     }
+    
+    func applyReferralBonus(newUserId: String, referredByCode: String) async {
+        let db = Firestore.firestore()
+
+        do {
+            let querySnapshot = try await db.collection("users")
+                .whereField("referralCode", isEqualTo: referredByCode.uppercased())
+                .getDocuments()
+
+            print("Referral query matched \(querySnapshot.documents.count) users.")
+
+            guard let referrerDoc = querySnapshot.documents.first else {
+                print("❌ No referrer found with code: \(referredByCode)")
+                return
+            }
+
+            let referrerId = referrerDoc.documentID
+            print("✅ Found referrer: \(referrerId) — applying bonus...")
+
+            let batch = db.batch()
+            let newUserRef = db.collection("users").document(newUserId)
+            let referrerRef = db.collection("users").document(referrerId)
+
+            batch.updateData(["points": FieldValue.increment(Int64(2500))], forDocument: newUserRef)
+            batch.updateData(["points": FieldValue.increment(Int64(2500))], forDocument: referrerRef)
+
+            try await batch.commit()
+            print("🎉 Referral bonus applied to both users.")
+
+        } catch {
+            print("⚠️ Failed to apply referral bonus: \(error.localizedDescription)")
+        }
+    }
+
     
     func checkPasswordsMatch() {
         if password != confirmPassword {
@@ -177,13 +220,23 @@ struct SignUpView: View {
                 
                 // Save additional user data to Firestore
                 let db = Firestore.firestore()
-                try await db.collection("users").document(userId).setData([
+                var userData: [String: Any] = [
                     "name": name,
                     "email": email,
-                    "progress": 0, // Initial progress
+                    "progress": 0,
                     "createdAt": FieldValue.serverTimestamp(),
                     "points": 0
-                ])
+                ]
+
+                if !referralCode.trimmingCharacters(in: .whitespaces).isEmpty {
+                    userData["referredBy"] = referralCode.uppercased()
+                }
+
+                try await db.collection("users").document(userId).setData(userData)
+                
+                if let refCode = userData["referredBy"] as? String {
+                    await applyReferralBonus(newUserId: userId, referredByCode: refCode)
+                }
                 
                 // Update Firebase Auth user profile with name
                 let changeRequest = authResult.user.createProfileChangeRequest()

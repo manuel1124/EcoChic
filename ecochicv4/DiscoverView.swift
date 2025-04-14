@@ -68,6 +68,7 @@ struct DiscoverView: View {
             }
             
             VStack {
+                /*
                 HStack {
                     HStack {
                         Image(systemName: "magnifyingglass")
@@ -86,6 +87,7 @@ struct DiscoverView: View {
                 .background(Color.clear) // Transparent background
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .padding(.top, 10) // Moves it closer to the top
+                 */
              
                 
                 ScrollView(.horizontal, showsIndicators: false) {

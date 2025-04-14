@@ -121,6 +121,7 @@ struct HomeView: View {
                             }
                         }
                     }
+                    startPointsListener()
                 }
                 
                 // The overlay popup, centered on the screen:
@@ -146,6 +147,16 @@ struct HomeView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+    
+    func startPointsListener() {
+        guard let user = Auth.auth().currentUser else { return }
+        Firestore.firestore().collection("users").document(user.uid)
+            .addSnapshotListener { snapshot, error in
+                if let points = snapshot?.data()?["points"] as? Int {
+                    self.userPoints = points
+                }
+            }
     }
     
     func fetchUserPoints() {

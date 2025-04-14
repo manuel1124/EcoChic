@@ -111,29 +111,96 @@ struct ProfileView: View {
                     Spacer()
                 }
                 
-                // Logout Button
-                Button(action: {
-                    do {
-                        try appController.signOut()
-                    } catch {
-                        print("Error signing out: \(error.localizedDescription)")
+                Spacer()
+
+                // Invite a Friend (blue link)
+                HStack(spacing: 30) {
+                    // Invite a Friend (blue link)
+                    if let user = Auth.auth().currentUser {
+                        Button(action: {
+                            shareReferralLink()
+                        }) {
+                            Text("Invite a Friend")
+                                .font(.body)
+                                .foregroundColor(.blue)
+                                .underline()
+                        }
                     }
-                }) {
-                    Text("Logout")
-                        .fontWeight(.bold)
-                        .frame(maxWidth: 150)
-                        .padding(.vertical, 10)
-                        .padding(.horizontal, 20)
-                        .background(Color.red)
-                        .foregroundColor(.white)
-                        .cornerRadius(25)
+
+                    // Logout (red link)
+                    Button(action: {
+                        do {
+                            try appController.signOut()
+                        } catch {
+                            print("Error signing out: \(error.localizedDescription)")
+                        }
+                    }) {
+                        Text("Logout")
+                            .font(.body)
+                            .foregroundColor(.red)
+                            .underline()
+                    }
                 }
-                .padding(.bottom, 20)
+                .padding(.bottom, 30)
+
+
             }
             .background(Color(.systemGray6))
             .onAppear(perform: fetchUserProfile)
         }
     }
+    
+    private func shareReferralLink() {
+        guard let user = Auth.auth().currentUser else { return }
+        let db = Firestore.firestore()
+        let userRef = db.collection("users").document(user.uid)
+
+        userRef.getDocument { document, error in
+            if let document = document {
+                var referralCode = document.data()?["referralCode"] as? String
+
+                // If missing, generate one and save it
+                if referralCode == nil {
+                    referralCode = UUID().uuidString.prefix(6).uppercased()
+                    userRef.setData(["referralCode": referralCode!], merge: true) { error in
+                        if let error = error {
+                            print("Failed to set referral code: \(error.localizedDescription)")
+                            return
+                        }
+                        // After setting it, show the share sheet
+                        presentShareSheet(with: referralCode!)
+                    }
+                } else {
+                    // Code exists — show the share sheet
+                    presentShareSheet(with: referralCode!)
+                }
+            } else {
+                print("Error fetching user data: \(error?.localizedDescription ?? "Unknown error")")
+            }
+        }
+    }
+    
+    private func presentShareSheet(with referralCode: String) {
+        let link = "ecochic://referral?ref=\(referralCode)"
+        
+        let message = """
+        Hey! 🌱 I've been using EcoChic to earn rewards for sustainable choices. 
+        Use my referral code **\(referralCode)** when signing up in the app to get a bonus 2,500 points!
+
+        Tap this link to get started: \(link)
+        """
+
+        let activityVC = UIActivityViewController(activityItems: [message], applicationActivities: nil)
+        
+        // Must present on main thread
+        DispatchQueue.main.async {
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let rootVC = windowScene.windows.first?.rootViewController {
+                rootVC.present(activityVC, animated: true, completion: nil)
+            }
+        }
+    }
+
 
     private func fetchUserProfile() {
         guard let user = Auth.auth().currentUser else { return }

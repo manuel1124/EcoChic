@@ -28,7 +28,6 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 @main
 struct EcoChic: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
-
     @State private var appController = AppController()
 
     var body: some Scene {
@@ -36,6 +35,13 @@ struct EcoChic: App {
             ContentView()
                 .environment(appController)
                 .onAppear { appController.listenToAuthChanges() }
+                .onOpenURL { url in
+                    if let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
+                       let ref = components.queryItems?.first(where: { $0.name == "ref" })?.value {
+                        UserDefaults.standard.set(ref, forKey: "referrerCode")
+                        print("Referral code captured: \(ref)")
+                    }
+                }
         }
     }
 }

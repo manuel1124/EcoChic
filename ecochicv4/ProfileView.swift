@@ -9,6 +9,8 @@ struct ProfileView: View {
     @State private var userProgress: Int = 0
     @State private var userPoints: Int = 0
     @State private var redeemedCoupons: [RedeemedCoupon] = []
+    @State private var showReferralPopup = false
+
     
 
     var body: some View {
@@ -118,12 +120,12 @@ struct ProfileView: View {
                     // Invite a Friend (blue link)
                     if let user = Auth.auth().currentUser {
                         Button(action: {
-                            shareReferralLink()
+                            showReferralPopup = true
                         }) {
                             Text("Invite a Friend")
-                                .font(.body)
                                 .foregroundColor(.blue)
-                                .underline()
+                                //.underline()
+                                .font(.body)
                         }
                     }
 
@@ -138,7 +140,7 @@ struct ProfileView: View {
                         Text("Logout")
                             .font(.body)
                             .foregroundColor(.red)
-                            .underline()
+                            //.underline()
                     }
                 }
                 .padding(.bottom, 30)
@@ -147,6 +149,24 @@ struct ProfileView: View {
             }
             .background(Color(.systemGray6))
             .onAppear(perform: fetchUserProfile)
+            .overlay(
+                Group {
+                    if showReferralPopup {
+                        ReferralPopup(
+                            onRefer: {
+                                showReferralPopup = false
+                                shareReferralLink()
+                            },
+                            onCancel: {
+                                showReferralPopup = false
+                            }
+                        )
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .animation(.spring(), value: showReferralPopup)
+                    }
+                }
+            )
+
         }
     }
     
@@ -413,4 +433,52 @@ struct RedeemedCouponRow: View {
     }
 
 
+}
+
+struct ReferralPopup: View {
+    var onRefer: () -> Void
+    var onCancel: () -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "gift.fill")
+                .font(.system(size: 30))
+                .foregroundColor(.green)
+
+            Text("Refer a Friend")
+                .font(.headline)
+
+            Text("You and your friend will both earn 2,500 points! 🎉")
+                .font(.subheadline)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+
+            HStack(spacing: 16) {
+                Button("Cancel") {
+                    onCancel()
+                }
+                .font(.subheadline)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 20)
+                .background(Color.gray.opacity(0.2))
+                .cornerRadius(8)
+                .foregroundColor(.black)
+
+                Button("Refer") {
+                    onRefer()
+                }
+                .font(.subheadline)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 20)
+                .background(Color.green)
+                .foregroundColor(.white)
+                .cornerRadius(8)
+            }
+        }
+        .padding()
+        .background(.white)
+        .cornerRadius(16)
+        .shadow(radius: 10)
+        .frame(maxWidth: 300)
+    }
 }

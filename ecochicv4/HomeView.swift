@@ -111,6 +111,7 @@ struct HomeView: View {
                     }
                     //seedStylePersonaDocument()
                     //seedStyleQuiz()
+                    //addAvailableCouponCodes()
                     updateUserStreak { updatedStreak, pointsEarned in
                         DispatchQueue.main.async {
                             self.streak = updatedStreak
@@ -507,3 +508,33 @@ func seedStyleQuiz() {
         }
     }
 }
+
+func addAvailableCouponCodes() {
+    let db = Firestore.firestore()
+        let couponId = "morethanafad_coupon1"
+
+        let couponCodes = [
+            "MTAF2C6520",
+            "MTAF99E420",
+            "MTAF92C620",
+            "MTAF049620",
+            "MTAF607820",
+            "MTAF511420",
+            "MTAF962320",
+            "MTAF450820",
+            "MTAF145E20",
+            "MTAFE00420"
+        ]
+
+        let couponRef = db.collection("coupons").document(couponId)
+
+        couponRef.updateData([
+            "available": couponCodes
+        ]) { error in
+            if let error = error {
+                print("Error updating coupon codes: \(error.localizedDescription)")
+            } else {
+                print("Successfully added coupon codes to \(couponId)")
+            }
+        }
+    }

@@ -119,6 +119,16 @@ struct SignUpView: View {
             }
             .padding(.horizontal, 20)
             .disabled(!passwordsMatch || password.isEmpty || name.isEmpty || email.isEmpty)
+            
+            NavigationLink(destination: PrivacyPolicyView()) {
+                Text("By signing up, you agree to our Privacy Policy.")
+                    .font(.footnote)
+                    .foregroundColor(.gray)
+                    .underline()
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, 20)
+            .frame(maxWidth: .infinity, alignment: .center)
 
             Spacer()
         }

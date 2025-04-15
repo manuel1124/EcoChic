@@ -8,6 +8,7 @@ struct Coupon: Identifiable {
     let id: String   // Change this to String to match the Firestore document ID
     let requiredPoints: Int
     let discountAmount: Double
+    var available: [String] = []
     //let applicableItems: [String]
     //let description: String
 }
@@ -244,7 +245,6 @@ struct StoreRow: View {
     }
 }
 
-
 func fetchStores(completion: @escaping ([Store]) -> Void) {
     let db = Firestore.firestore()
     db.collection("stores").getDocuments { snapshot, error in
@@ -253,72 +253,86 @@ func fetchStores(completion: @escaping ([Store]) -> Void) {
             completion([])
             return
         }
-        
+
         guard let documents = snapshot?.documents else {
-            print("No documents found")
+            print("No store documents found")
             completion([])
             return
         }
-        
-        let stores = documents.compactMap { doc -> Store? in
+
+        var stores: [Store] = []
+        let dispatchGroup = DispatchGroup()
+
+        for doc in documents {
             let data = doc.data()
-            
-            print("Fetched data:", data) // Debugging print
-            
+
             guard let name = data["name"] as? String,
                   let location = data["location"] as? String,
                   let thumbnailUrl = data["thumbnailUrl"] as? String,
                   let about = data["about"] as? String,
-                  let couponsArray = data["coupons"] as? [[String: Any]] else {
-                print("Skipping document due to missing fields")
-                return nil
+                  let couponId = data["couponId"] as? String else {
+                print("Skipping store due to missing fields")
+                continue
             }
-            
-            // Handle optional map data
-            let coordinate: CLLocationCoordinate2D? // ✅ Make it optional
+
+            // Optional coordinate
+            var coordinate: CLLocationCoordinate2D?
             if let mapData = data["map"] as? [String: Any],
                let latitude = mapData["latitude"] as? Double,
                let longitude = mapData["longitude"] as? Double {
                 coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
-            } else {
-                coordinate = nil
-            }
-            
-            let coupons = couponsArray.compactMap { couponData -> Coupon? in
-                guard let id = couponData["id"] as? String,
-                      let requiredPoints = couponData["requiredPoints"] as? Int,
-                      let discountAmount = couponData["discountAmount"] as? Double else {
-                    print("Skipping coupon due to missing fields")
-                    return nil
-                }
-                
-                return Coupon(id: id, requiredPoints: requiredPoints, discountAmount: discountAmount)
             }
 
-            // ✅ Fetch optional social media fields
+            // Optional social links
             let website = data["website"] as? String
             let instagram = data["instagram"] as? String
             let facebook = data["facebook"] as? String
             let tiktok = data["tiktok"] as? String
-            
-            print("Adding store: \(name), coordinate: \(coordinate != nil ? "Yes" : "No")")
-            
-            return Store(
-                id: doc.documentID,
-                name: name,
-                location: location,
-                coordinate: coordinate,
-                coupons: coupons,
-                about: about,
-                thumbnailUrl: thumbnailUrl,
-                website: website,
-                instagram: instagram,
-                tiktok: tiktok,
-                facebook: facebook
-            )
+
+            dispatchGroup.enter()
+            db.collection("coupons").document(couponId).getDocument { couponSnapshot, couponError in
+                defer { dispatchGroup.leave() }
+
+                if let couponError = couponError {
+                    print("Error fetching coupon: \(couponError.localizedDescription)")
+                    return
+                }
+
+                guard let couponData = couponSnapshot?.data(),
+                      let requiredPoints = couponData["requiredPoints"] as? Int,
+                      let discountAmount = couponData["discountAmount"] as? Double else {
+                    print("Invalid coupon data for \(couponId)")
+                    return
+                }
+
+                let availableCodes = couponData["available"] as? [String] ?? []
+
+                let coupon = Coupon(
+                    id: couponId,
+                    requiredPoints: requiredPoints,
+                    discountAmount: discountAmount,
+                    available: availableCodes
+                )
+                let store = Store(
+                    id: doc.documentID,
+                    name: name,
+                    location: location,
+                    coordinate: coordinate,
+                    coupons: [coupon],
+                    about: about,
+                    thumbnailUrl: thumbnailUrl,
+                    website: website,
+                    instagram: instagram,
+                    tiktok: tiktok,
+                    facebook: facebook
+                )
+
+                stores.append(store)
+            }
         }
-        
-        print("Final store count: \(stores.count)")
-        completion(stores)
+
+        dispatchGroup.notify(queue: .main) {
+            completion(stores)
+        }
     }
 }

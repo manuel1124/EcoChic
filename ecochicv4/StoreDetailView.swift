@@ -139,16 +139,19 @@ struct StoreDetailView: View {
     }
 
     
-    // Rewards Section
     @ViewBuilder
     private func RewardsSection() -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            
             ForEach(store.coupons) { coupon in
-                let isRedeemed = redeemedCoupons.contains(coupon.id)
-                CouponRow(coupon: coupon, userPoints: $userPoints, storeId: store.id, isRedeemed: isRedeemed)
+                CouponRowWrapper(
+                    coupon: coupon,
+                    userPoints: $userPoints,
+                    storeId: store.id,
+                    redeemedCoupons: redeemedCoupons
+                )
             }
         }
+        .id(redeemedCoupons) // ✅ forces re-render when list changes
     }
     
     private func fetchRedeemedCoupons() {
@@ -163,6 +166,23 @@ struct StoreDetailView: View {
         }
     }
 }
+
+struct CouponRowWrapper: View {
+    let coupon: Coupon
+    @Binding var userPoints: Int
+    let storeId: String
+    let redeemedCoupons: [String]
+
+    var body: some View {
+        let isRedeemed = redeemedCoupons.contains(coupon.id)
+        return CouponRow(
+            coupon: coupon,
+            userPoints: $userPoints,
+            storeId: storeId
+        )
+    }
+}
+
 
 struct TabButton: View {
     let title: String
@@ -189,8 +209,16 @@ struct CouponRow: View {
     let coupon: Coupon
     @Binding var userPoints: Int
     let storeId: String
-    let isRedeemed: Bool
+    @State private var isRedeemed = false
     @State private var isProcessing = false
+
+    private var buttonColor: Color {
+        if coupon.available.isEmpty {
+            return .gray
+        } else {
+            return userPoints >= coupon.requiredPoints ? .green : .gray
+        }
+    }
 
     var body: some View {
         HStack {
@@ -199,7 +227,7 @@ struct CouponRow: View {
                     .font(.headline)
                     .bold()
 
-                Text("Valid till Apr 07, 2025")
+                Text("Valid till May 14, 2025")
                     .font(.subheadline)
                     .foregroundColor(.gray)
             }
@@ -227,14 +255,15 @@ struct CouponRow: View {
                 }
 
                 Button(action: redeemCoupon) {
-                    Text("Redeem")
+                    Text(coupon.available.isEmpty ? "Unavailable" : "Redeem")
                         .foregroundColor(.white)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
-                        .background(userPoints >= coupon.requiredPoints ? Color.green : Color.gray)
+                        .background(buttonColor)
                         .cornerRadius(10)
                 }
-                .disabled(userPoints < coupon.requiredPoints)
+                .disabled(coupon.available.isEmpty || userPoints < coupon.requiredPoints)
+
             }
         }
         .padding()
@@ -247,56 +276,102 @@ struct CouponRow: View {
         )
         .padding(.horizontal)
         .padding(.top, 20)
+        .onAppear {
+                checkIfRedeemed()
+            }
+    }
+    
+    private func checkIfRedeemed() {
+        guard let user = Auth.auth().currentUser else { return }
+
+        let db = Firestore.firestore()
+        db.collection("users").document(user.uid).getDocument { snapshot, error in
+            if let error = error {
+                print("Error checking redemption: \(error.localizedDescription)")
+                return
+            }
+
+            if let redeemedDict = snapshot?.data()?["redeemedCoupons"] as? [String: String] {
+                if redeemedDict[coupon.id] != nil {
+                    isRedeemed = true
+                }
+            }
+        }
     }
 
     private func redeemCoupon() {
         guard let user = Auth.auth().currentUser, userPoints >= coupon.requiredPoints else { return }
+        guard !coupon.available.isEmpty else {
+            print("No codes available.")
+            return
+        }
 
         isProcessing = true
 
         let db = Firestore.firestore()
         let userRef = db.collection("users").document(user.uid)
+        let couponRef = db.collection("coupons").document(coupon.id)
 
         db.runTransaction({ (transaction, errorPointer) -> Any? in
-            let userDocument: DocumentSnapshot
+            // Fetch user doc
+            let userDoc: DocumentSnapshot
             do {
-                userDocument = try transaction.getDocument(userRef)
+                userDoc = try transaction.getDocument(userRef)
             } catch {
                 errorPointer?.pointee = NSError(domain: "Firestore", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to fetch user document"])
                 return nil
             }
 
-            guard let currentPoints = userDocument.data()?["points"] as? Int, currentPoints >= coupon.requiredPoints else {
+            guard let currentPoints = userDoc.data()?["points"] as? Int, currentPoints >= coupon.requiredPoints else {
                 errorPointer?.pointee = NSError(domain: "Firestore", code: -1, userInfo: [NSLocalizedDescriptionKey: "Not enough points"])
                 return nil
             }
 
-            let newPoints = currentPoints - coupon.requiredPoints
-            
-            // Fetch the existing redeemedCoupons array
-            var redeemedCoupons = userDocument.data()?["redeemedCoupons"] as? [String] ?? []
+            // Fetch coupon doc
+            let couponDoc: DocumentSnapshot
+            do {
+                couponDoc = try transaction.getDocument(couponRef)
+            } catch {
+                errorPointer?.pointee = NSError(domain: "Firestore", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to fetch coupon document"])
+                return nil
+            }
 
-            // Add the current coupon's ID to the redeemedCoupons array
-            redeemedCoupons.append(coupon.id)
+            var availableCodes = couponDoc.data()?["available"] as? [String] ?? []
+            guard !availableCodes.isEmpty else {
+                errorPointer?.pointee = NSError(domain: "Firestore", code: -1, userInfo: [NSLocalizedDescriptionKey: "No coupon codes available"])
+                return nil
+            }
 
-            // Update the user's document with new points and redeemedCoupons array
+            // Pop first available code
+            let redeemedCode = availableCodes.removeFirst()
+
+            // Update user's redeemedCoupons as a dictionary
+            var redeemedCoupons = userDoc.data()?["redeemedCoupons"] as? [String: String] ?? [:]
+            redeemedCoupons[coupon.id] = redeemedCode
+
+            // Update both documents
             transaction.updateData([
-                "points": newPoints,
+                "points": currentPoints - coupon.requiredPoints,
                 "redeemedCoupons": redeemedCoupons
             ], forDocument: userRef)
-            
-            return newPoints
-        }) { (newPoints, error) in
+
+            transaction.updateData([
+                "available": availableCodes
+            ], forDocument: couponRef)
+
+            return currentPoints - coupon.requiredPoints
+        }) { result, error in
             DispatchQueue.main.async {
                 isProcessing = false
-                if let newPoints = newPoints as? Int {
-                    userPoints = newPoints // Update points in UI
-
+                if let newPoints = result as? Int {
+                    userPoints = newPoints
+                    isRedeemed = true
                     NotificationCenter.default.post(name: .couponRedeemed, object: coupon.id)
-                } else if let error = error {
-                    print("Transaction failed: \(error.localizedDescription)")
+                } else {
+                    print("Transaction failed: \(error?.localizedDescription ?? "Unknown error")")
                 }
             }
         }
     }
+
 }

@@ -67,6 +67,12 @@ struct StylePersonaQuizView: View {
                                 }
                                 .buttonStyle(PlainButtonStyle()) // so it looks like your row
                             }
+                            Spacer()
+                            Text("Come back tomorrow for more!")
+                                        .font(.headline)
+                                        .foregroundColor(.gray)
+                                        .multilineTextAlignment(.center)
+                                        .padding(.top, 20)
                         }
                         .padding()
                     }
@@ -120,7 +126,8 @@ struct StylePersonaQuizView: View {
                         collectionPoints: personality.points
                     )
                 }
-                .presentationDetents([.height(500), .large])
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
             }
           }
         }

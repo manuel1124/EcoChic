@@ -74,13 +74,15 @@ struct VideoPlayerView: View {
                     .foregroundColor(.green)
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .center)
+                /*
                 if let score = userScore {
                     Text("Your Score: \(score)%")
                         .font(.headline)
                         .padding()
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
-                Spacer()
+                 */
+                //Spacer()
                 //goBackButton
             } else {
                 if isQuizEnabled {
@@ -109,9 +111,18 @@ struct VideoPlayerView: View {
                         .padding(.horizontal)
                         .opacity(0.7)
                 }
-                Spacer()
+                //Spacer()
                 //goBackButton
             }
+            if !video.about.isEmpty {
+                Text(video.about)
+                    .font(.body)
+                    .foregroundColor(.gray)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 10)
+                    .multilineTextAlignment(.center)
+            }
+            Spacer()
         }
         .navigationBarBackButtonHidden(true) // Hides default back button
         .background(Color(.systemGray6))

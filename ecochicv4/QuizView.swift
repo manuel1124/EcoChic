@@ -106,6 +106,7 @@ struct QuizView: View {
                         Text(quiz[currentQuestionIndex].questionText)
                             .font(.title)
                             .padding()
+                            .multilineTextAlignment(.center)
                         
                         ForEach(quiz[currentQuestionIndex].options, id: \.self) { option in
                             Button(action: {

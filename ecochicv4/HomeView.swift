@@ -112,6 +112,7 @@ struct HomeView: View {
                     //seedStylePersonaDocument()
                     //seedStyleQuiz()
                     //addAvailableCouponCodes()
+                    //addNewQuiz()
                     updateUserStreak { updatedStreak, pointsEarned in
                         DispatchQueue.main.async {
                             self.streak = updatedStreak
@@ -293,39 +294,73 @@ func addNewVideoWithQuiz() {
 func addNewQuiz() {
     let db = Firestore.firestore()
     
-    // Prepare the quiz data as an array of dictionaries.
-    let quizData: [[String: Any]] = [
-        [
-            "questionText": "What is the capital of France?",
-            "options": ["Paris", "London", "Berlin", "Madrid"],
-            "correctAnswer": "Paris"
-        ],
-        [
-            "questionText": "What is the capital of Alberta?",
-            "options": ["Calgary", "Edmonton", "Red Deer", "Grande Prairie"],
-            "correctAnswer": "Edmonton"
-        ],
-        [
-            "questionText": "What is the best University in Alberta?",
-            "options": ["UofA", "UofC", "UofL", "UBC"],
-            "correctAnswer": "UofA"
-        ],
-        [
-            "questionText": "Which planet is known as the Red Planet?",
-            "options": ["Earth", "Mars", "Jupiter", "Venus"],
-            "correctAnswer": "Mars"
+    let quizID = "fastFashionLaborQuiz1"
+    
+    let quizData: [String: Any] = [
+        "questions": [
+            [
+                "questionText": "What risk comes with fast fashion’s use of globalized supply chains?",
+                "options": [
+                    "Higher product prices",
+                    "Increased job opportunities for garment workers",
+                    "Labor exploitation in countries with weak regulations",
+                    "Better international working standards"
+                ],
+                "correctAnswer": "Labor exploitation in countries with weak regulations"
+            ],
+            [
+                "questionText": "Why is outsourcing production to low-cost countries a problem in the fast fashion industry?",
+                "options": [
+                    "Improves working conditions too quickly",
+                    "It often leads to unsafe environments and poor wages for workers",
+                    "It slows down production",
+                    "It raises the price of clothing"
+                ],
+                "correctAnswer": "It often leads to unsafe environments and poor wages for workers"
+            ],
+            [
+                "questionText": "How does fast fashion’s constant release of new collections affect garment workers?",
+                "options": [
+                    "It helps them keep stable jobs",
+                    "It improves their job satisfaction",
+                    "It gives them more vacation time",
+                    "It creates job insecurity and short-term contracts"
+                ],
+                "correctAnswer": "It creates job insecurity and short-term contracts"
+            ],
+            [
+                "questionText": "What makes it difficult for many garment workers to support themselves and their families?",
+                "options": [
+                    "Low wages that often fall below living standards",
+                    "Too many benefits from their employers",
+                    "High costs of rent in urban factories",
+                    "Working part-time by choice"
+                ],
+                "correctAnswer": "Low wages that often fall below living standards"
+            ],
+            [
+                "questionText": "What is one long-term consequence of fast fashion’s search for cheap labor?",
+                "options": [
+                    "It helps develop diverse local economies",
+                    "It creates dependency on low-wage labor and limits economic growth",
+                    "It encourages sustainable jobs in rural areas",
+                    "It brings high-paying jobs to all regions"
+                ],
+                "correctAnswer": "It creates dependency on low-wage labor and limits economic growth"
+            ]
         ]
     ]
     
-    // Add a new document to the "quizzes" collection with the quiz data.
-    db.collection("quizzes").addDocument(data: ["questions": quizData]) { error in
+    db.collection("quizzes").document(quizID).setData(quizData) { error in
         if let error = error {
-            print("Error adding quiz: \(error.localizedDescription)")
+            print("❌ Error adding fast fashion labor quiz: \(error.localizedDescription)")
         } else {
-            print("New quiz added successfully!")
+            print("✅ Fast fashion labor quiz added successfully!")
         }
     }
 }
+
+
 
 //import FirebaseFirestore
 

@@ -61,6 +61,7 @@ struct PersonalityQuizView: View {
                         Text(quiz[currentQuestionIndex].questionText)
                             .font(.title)
                             .padding()
+                            .multilineTextAlignment(.center)
                         
                         // Options
                         ForEach(quiz[currentQuestionIndex].options.indices, id: \.self) { idx in

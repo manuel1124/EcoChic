@@ -10,6 +10,7 @@ struct ProfileView: View {
     @State private var userPoints: Int = 0
     @State private var redeemedCoupons: [RedeemedCoupon] = []
     @State private var showReferralPopup = false
+    @State private var showDeleteConfirmation = false
 
     
 
@@ -115,35 +116,49 @@ struct ProfileView: View {
                 
                 Spacer()
 
-                // Invite a Friend (blue link)
-                HStack(spacing: 30) {
-                    // Invite a Friend (blue link)
-                    if let user = Auth.auth().currentUser {
+                VStack(spacing: 15) {
+                    HStack(spacing: 30) {
+                        // Invite a Friend (blue link)
+                        if let user = Auth.auth().currentUser {
+                            Button(action: {
+                                showReferralPopup = true
+                            }) {
+                                Text("Invite a Friend")
+                                    .foregroundColor(.blue)
+                                    .font(.body)
+                            }
+                        }
+
+                        // Logout (red link)
                         Button(action: {
-                            showReferralPopup = true
+                            do {
+                                try appController.signOut()
+                            } catch {
+                                print("Error signing out: \(error.localizedDescription)")
+                            }
                         }) {
-                            Text("Invite a Friend")
-                                .foregroundColor(.blue)
-                                //.underline()
+                            Text("Logout")
                                 .font(.body)
+                                .foregroundColor(.red)
                         }
                     }
 
-                    // Logout (red link)
+                    // Delete Account button
                     Button(action: {
-                        do {
-                            try appController.signOut()
-                        } catch {
-                            print("Error signing out: \(error.localizedDescription)")
-                        }
+                        showDeleteConfirmation = true
                     }) {
-                        Text("Logout")
+                        Text("Delete Account")
                             .font(.body)
-                            .foregroundColor(.red)
-                            //.underline()
+                            .foregroundColor(.red.opacity(0.7))
+                    }
+                    .alert("Confirm Deletion", isPresented: $showDeleteConfirmation) {
+                        Button("Delete", role: .destructive, action: deleteAccount)
+                        Button("Cancel", role: .cancel, action: {})
+                    } message: {
+                        Text("Are you sure you want to permanently delete your account and all associated data? This action cannot be undone.")
                     }
                 }
-                .padding(.bottom, 30)
+                .padding(.bottom, 10)
 
 
             }
@@ -217,6 +232,39 @@ struct ProfileView: View {
             if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                let rootVC = windowScene.windows.first?.rootViewController {
                 rootVC.present(activityVC, animated: true, completion: nil)
+            }
+        }
+    }
+
+    private func deleteAccount() {
+        guard let user = Auth.auth().currentUser else { return }
+
+        // First, delete user's Firestore data
+        let db = Firestore.firestore()
+        let userRef = db.collection("users").document(user.uid)
+
+        userRef.delete { error in
+            if let error = error {
+                print("Error deleting user data: \(error.localizedDescription)")
+                return
+            }
+
+            // Once Firestore data is deleted, delete Firebase Authentication user
+            user.delete { authError in
+                if let authError = authError {
+                    print("Error deleting user account: \(authError.localizedDescription)")
+                    return
+                }
+
+                // Successfully deleted user account and data
+                print("User account and data successfully deleted.")
+
+                // Sign out and update the UI or redirect user as needed
+                do {
+                    try appController.signOut()
+                } catch {
+                    print("Error signing out after deletion: \(error.localizedDescription)")
+                }
             }
         }
     }
@@ -329,6 +377,7 @@ struct ProfileRow: View {
         .padding(.vertical, 5)
     }
 }
+
 
 struct RedeemedCoupon {
     var coupon: Coupon
@@ -448,7 +497,7 @@ struct ReferralPopup: View {
             Text("Refer a Friend")
                 .font(.headline)
 
-            Text("You and your friend will both earn 2,500 points! 🎉")
+            Text("You and your friend will both earn 2,500 points!")
                 .font(.subheadline)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)

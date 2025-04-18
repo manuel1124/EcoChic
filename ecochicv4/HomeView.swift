@@ -112,7 +112,9 @@ struct HomeView: View {
                     //seedStylePersonaDocument()
                     //seedStyleQuiz()
                     //addAvailableCouponCodes()
+                    //seedStylePersonaDocument()
                     //addNewQuiz()
+                    //addNewVideo()
                     updateUserStreak { updatedStreak, pointsEarned in
                         DispatchQueue.main.async {
                             self.streak = updatedStreak
@@ -247,39 +249,18 @@ func addNewStoreWithCoupons() {
     }
 }
 
-func addNewVideoWithQuiz() {
+func addNewVideo() {
     let db = Firestore.firestore()
     
     let videoData: [String: Any] = [
-        "title": "Landfills",
-        "about": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-        "points": 1500,
-        "duration": "7:24",
-        "url": "Vl6VhCAeEfQ", // Replace with actual URL
-        "thumbnailUrl": "https://www.litterbins.co.uk/cdn/shop/articles/Landfill_That_is_Full_c0f5581d-43de-4822-ac8b-c86264e79e12.webp?v=1692560108", // Replace with actual URL
+        "title": "avoidFastFashion1",
+        "about": "What’s the most sustainable fashion choice you can make? It might be simpler than you think. In this video, we explore how rewearing, repairing, and making thoughtful choices can help you avoid fast fashion. From learning to mend your clothes to buying second-hand or researching ethical brands, discover small changes that make a big impact.",
+        "points": 2500,
+        "duration": "1:31",
+        "url": "tXyE0mBexRM", // Replace with actual URL
+        "thumbnailUrl": "https://zerowastememoirs.com/wp-content/uploads/2024/11/ZWM-say-no-to-fast-fashion-1-720x540-1-1.jpg", // Replace with actual URL
         "uploadedAt": FieldValue.serverTimestamp(),
-        "quiz": [
-            [
-                "questionText": "What is the capital of France?",
-                "options": ["Paris", "London", "Berlin", "Madrid"],
-                "correctAnswer": "Paris"
-            ],
-            [
-                "questionText": "What is the capital of Alberta?",
-                "options": ["Calgary", "Edmonton", "Red Deer", "Grande Prairie"],
-                "correctAnswer": "Edmonton"
-            ],
-            [
-                "questionText": "What is the best University in Alberta?",
-                "options": ["UofA", "UofC", "UofL", "UBC"],
-                "correctAnswer": "UofA"
-            ],
-            [
-                "questionText": "Which planet is known as the Red Planet?",
-                "options": ["Earth", "Mars", "Jupiter", "Venus"],
-                "correctAnswer": "Mars"
-            ]
-        ]
+        "quizID": "whatareyourclothesmadeof_quiz1",
     ]
     
     db.collection("videos").addDocument(data: videoData) { error in
@@ -294,68 +275,68 @@ func addNewVideoWithQuiz() {
 func addNewQuiz() {
     let db = Firestore.firestore()
     
-    let quizID = "fastFashionLaborQuiz1"
+    let quizID = "avoidFastFashion1"
     
     let quizData: [String: Any] = [
         "questions": [
             [
-                "questionText": "What risk comes with fast fashion’s use of globalized supply chains?",
+                "questionText": "What does the speaker say is the most sustainable thing you can do?",
                 "options": [
-                    "Higher product prices",
-                    "Increased job opportunities for garment workers",
-                    "Labor exploitation in countries with weak regulations",
-                    "Better international working standards"
+                    "Buy organic cotton",
+                    "Recycle your old clothes",
+                    "Use what you already have",
+                    "Shop from local designers"
                 ],
-                "correctAnswer": "Labor exploitation in countries with weak regulations"
+                "correctAnswer": "Use what you already have"
             ],
             [
-                "questionText": "Why is outsourcing production to low-cost countries a problem in the fast fashion industry?",
+                "questionText": "What is one suggested method for fixing minor clothing damage?",
                 "options": [
-                    "Improves working conditions too quickly",
-                    "It often leads to unsafe environments and poor wages for workers",
-                    "It slows down production",
-                    "It raises the price of clothing"
+                    "Taking it to a landfill",
+                    "Buying the same item new",
+                    "Sewing or repairing it",
+                    "Dyeing it a new colour"
                 ],
-                "correctAnswer": "It often leads to unsafe environments and poor wages for workers"
+                "correctAnswer": "Sewing or repairing it"
             ],
             [
-                "questionText": "How does fast fashion’s constant release of new collections affect garment workers?",
+                "questionText": "What are some resources mentioned for learning how to repair clothes?",
                 "options": [
-                    "It helps them keep stable jobs",
-                    "It improves their job satisfaction",
-                    "It gives them more vacation time",
-                    "It creates job insecurity and short-term contracts"
+                    "Fast fashion retailers",
+                    "Repair cafes and online tutorials",
+                    "Clothing hauls on social media",
+                    "Discount coupons"
                 ],
-                "correctAnswer": "It creates job insecurity and short-term contracts"
+                "correctAnswer": "Repair cafes and online tutorials"
             ],
             [
-                "questionText": "What makes it difficult for many garment workers to support themselves and their families?",
+                "questionText": "What should you consider before buying new clothing?",
                 "options": [
-                    "Low wages that often fall below living standards",
-                    "Too many benefits from their employers",
-                    "High costs of rent in urban factories",
-                    "Working part-time by choice"
+                    "If the item is trendy",
+                    "If it's on sale",
+                    "Where it comes from and if you truly need it",
+                    "If influencers are wearing it"
                 ],
-                "correctAnswer": "Low wages that often fall below living standards"
+                "correctAnswer": "Where it comes from and if you truly need it"
             ],
             [
-                "questionText": "What is one long-term consequence of fast fashion’s search for cheap labor?",
+                "questionText": "According to the video, what do our clothing purchases reflect?",
                 "options": [
-                    "It helps develop diverse local economies",
-                    "It creates dependency on low-wage labor and limits economic growth",
-                    "It encourages sustainable jobs in rural areas",
-                    "It brings high-paying jobs to all regions"
+                    "Our fashion sense",
+                    "Our income level",
+                    "Our values",
+                    "Our social media following"
                 ],
-                "correctAnswer": "It creates dependency on low-wage labor and limits economic growth"
+                "correctAnswer": "Our values"
             ]
         ]
     ]
     
     db.collection("quizzes").document(quizID).setData(quizData) { error in
         if let error = error {
-            print("❌ Error adding fast fashion labor quiz: \(error.localizedDescription)")
+            print("❌ Error adding sustainable clothing choices quiz: \(error.localizedDescription)")
         } else {
-            print("✅ Fast fashion labor quiz added successfully!")
+            print("✅ Sustainable clothing choices quiz added successfully!")
         }
     }
 }
@@ -375,19 +356,19 @@ func seedStylePersonaDocument() {
     // Build your trait array
     let typeData: [[String: Any]] = [
       [
-        "title":       "Fast Fashion Addict 🚨",
+        "title":       "Fast Fashion Addict",
         "description": "We get it—fast fashion is tempting. But let’s slow it down and shop smarter!",
-        "tip":         "Start small: Try one month of no fast fashion purchases. Instead of trends, invest in timeless pieces. Find sustainable alternatives—many ethical brands are just as affordable. 🔗 EcoChic Tip: Check out our beginner’s guide to breaking up with fast fashion!"
+        "tip":         "✅ Start small: Try one month of no fast fashion purchases.\n✅ Instead of trends, invest in timeless pieces that last longer.\n✅ Find sustainable alternatives—many ethical brands are just as affordable."
       ],
       [
-        "title":       "Sustainability Beginner 🌱",
+        "title":       "Sustainability Beginner",
         "description": "You’re making progress! Let’s keep up the momentum.",
-        "tip":         "Research brands before buying—are they truly sustainable or greenwashing? Try thrifting or secondhand for your next fashion find. Reduce waste: Donate or repurpose clothes instead of tossing them. 🔗 EcoChic Tip: Explore our top tips for sustainable shopping!"
+        "tip":         "✅ Research brands before buying—are they truly sustainable or greenwashing?\n✅ Try thrifting or secondhand for your next fashion find.\n✅ Reduce waste: Donate or repurpose clothes instead of tossing them."
       ],
       [
-        "title":       "Conscious Fashion Guru 🌎",
+        "title":       "Conscious Fashion Guru",
         "description": "You’re ahead of the game—let’s amplify your impact!",
-        "tip":         "Encourage your friends to adopt sustainable fashion habits. Experiment with renting or swapping clothes instead of buying. Discover ethical fashion innovations—support emerging brands. 🔗 EcoChic Tip: Read our feature on next‑gen sustainable fashion brands!"
+        "tip":         "✅ Encourage your friends to adopt sustainable fashion habits.\n✅ Experiment with renting or swapping clothes instead of buying.\n✅ Discover ethical fashion innovations—support emerging brands."
       ]
     ]
     

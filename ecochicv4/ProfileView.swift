@@ -216,13 +216,11 @@ struct ProfileView: View {
     }
     
     private func presentShareSheet(with referralCode: String) {
-        let link = "ecochic://referral?ref=\(referralCode)"
+        let link = "https://apps.apple.com/ca/app/ecochic/id6744263578"
         
         let message = """
         Hey! 🌱 I've been using EcoChic to earn rewards for sustainable choices. 
         Use my referral code **\(referralCode)** when signing up in the app to get a bonus 2,500 points!
-
-        Tap this link to get started: \(link)
         """
 
         let activityVC = UIActivityViewController(activityItems: [message], applicationActivities: nil)

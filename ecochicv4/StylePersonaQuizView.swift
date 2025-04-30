@@ -27,6 +27,9 @@ struct StylePersonaQuizView: View {
     @State private var quizQuestions: [QuizQuestion] = []
 
     @State private var selectedPersonality: Personality? = nil
+    @State private var currentTokens: Int = 5
+    @State private var lastTokenUsed: Date?
+    @State private var showTokenInfo = false
 
     var body: some View {
         NavigationView {
@@ -39,6 +42,38 @@ struct StylePersonaQuizView: View {
                             .bold()
 
                         Spacer()
+                        
+                        HStack(spacing: 6) {
+                            ForEach(0..<5) { index in
+                                if index < currentTokens {
+                                    Image("token logo")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 16, height: 16)
+                                } else {
+                                    Image("token logo")
+                                        .resizable()
+                                        .renderingMode(.template)
+                                        .scaledToFit()
+                                        .frame(width: 16, height: 16)
+                                        .foregroundColor(.gray.opacity(0.4))
+                                }
+                            }
+
+                            Button(action: {
+                                showTokenInfo = true
+                            }) {
+                                Image(systemName: "plus.circle")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(.gray)
+                            }
+                            .buttonStyle(PlainButtonStyle()) // No tap highlight
+                        }
+                        .padding(8)
+                        .background(Color.white)
+                        .cornerRadius(12)
+                        .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
+                        /*
 
                         HStack(spacing: 4) {
                             Image("points logo")
@@ -52,6 +87,7 @@ struct StylePersonaQuizView: View {
                         }
                         .padding(10)
                         .cornerRadius(10)
+                         */
                     }
                     .padding([.top, .leading, .trailing])
 
@@ -59,13 +95,12 @@ struct StylePersonaQuizView: View {
                     ScrollView(.vertical, showsIndicators: false) {
                         VStack(spacing: 16) {
                             ForEach(personalities) { personality in
-                                // REPLACE NavigationLink with a Button that sets selectedVideo
                                 Button(action: {
-                                    selectedPersonality = personality
+                                    handlePersonalityTap(personality)
                                 }) {
                                     PersonalityRow(personality: personality)
                                 }
-                                .buttonStyle(PlainButtonStyle()) // so it looks like your row
+                                .buttonStyle(PlainButtonStyle())
                             }
                             Spacer()
                             Text("Come back tomorrow for more!")
@@ -105,8 +140,13 @@ struct StylePersonaQuizView: View {
                 .onAppear {
                     fetchPersonalities()
                     fetchUserPoints()
+                    regenerateTokensIfNeeded()
                 }
                 .background(Color(.systemGray6))
+            }.alert("Want more tokens?", isPresented: $showTokenInfo) {
+                Button("Got it", role: .cancel) { }
+            } message: {
+                Text("You need tokens to attempt quizzes. Each quiz uses 1 token. Tokens regenerate every 5 hours, up to a maximum of 5.")
             }
             .onChange(of: selectedPersonality) { new in
               guard let p = new else { return }
@@ -116,6 +156,7 @@ struct StylePersonaQuizView: View {
                    onDismiss: {
                      fetchUserPoints()
                      fetchPersonalities()
+                    regenerateTokensIfNeeded()
                    }
             ) { personality in
             NavigationStack {
@@ -131,6 +172,35 @@ struct StylePersonaQuizView: View {
             }
           }
         }
+    
+    private func handlePersonalityTap(_ personality: Personality) {
+        guard currentTokens > 0 else {
+            print("Not enough tokens to attempt quiz.")
+            return
+        }
+
+        guard let user = Auth.auth().currentUser else { return }
+        let db = Firestore.firestore()
+        let userDoc = db.collection("users").document(user.uid)
+
+        let now = Date()
+        let newTokenCount = currentTokens - 1
+
+        userDoc.updateData([
+            "currentTokens": newTokenCount,
+            "lastTokenUsed": Timestamp(date: now)
+        ]) { error in
+            if let error = error {
+                print("Error deducting token: \(error.localizedDescription)")
+            } else {
+                print("Token deducted. New total: \(newTokenCount)")
+                self.currentTokens = newTokenCount
+                self.lastTokenUsed = now
+                self.selectedPersonality = personality
+            }
+        }
+    }
+
     
     private func fetchQuizQuestions(for quizID: String) {
             let db = Firestore.firestore()
@@ -156,6 +226,50 @@ struct StylePersonaQuizView: View {
                 }
             }
         }
+    
+    func regenerateTokensIfNeeded() {
+        guard let user = Auth.auth().currentUser else { return }
+        let db = Firestore.firestore()
+        let userDoc = db.collection("users").document(user.uid)
+
+        userDoc.getDocument { snapshot, error in
+            if let error = error {
+                print("Error fetching user data: \(error.localizedDescription)")
+                return
+            }
+
+            let now = Date()
+            var currentTokens = snapshot?.get("currentTokens") as? Int ?? 5
+            var lastTokenUsed = snapshot?.get("lastTokenUsed") as? Timestamp ?? Timestamp(date: now)
+
+            let lastDate = lastTokenUsed.dateValue()
+            let hoursSinceLast = now.timeIntervalSince(lastDate) / 3600
+            let tokensToRegenerate = Int(hoursSinceLast / 5)
+
+            if tokensToRegenerate > 0 && currentTokens < 5 {
+                let newTokenCount = min(currentTokens + tokensToRegenerate, 5)
+                let timeAdded = TimeInterval(tokensToRegenerate * 5 * 3600)
+                let newLastUsed = lastDate.addingTimeInterval(timeAdded)
+
+                userDoc.updateData([
+                    "currentTokens": newTokenCount,
+                    "lastTokenUsed": Timestamp(date: newLastUsed)
+                ]) { error in
+                    if let error = error {
+                        print("Error updating regenerated tokens: \(error.localizedDescription)")
+                    } else {
+                        print("Regenerated \(tokensToRegenerate) tokens → \(newTokenCount) total")
+                        self.currentTokens = newTokenCount
+                        self.lastTokenUsed = newLastUsed
+                    }
+                }
+            } else {
+                // Just sync current state if no regeneration
+                self.currentTokens = currentTokens
+                self.lastTokenUsed = lastDate
+            }
+        }
+    }
     
     func fetchPersonalities() {
         let db = Firestore.firestore()

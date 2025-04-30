@@ -26,6 +26,10 @@ struct LearnView: View {
     @Environment(\.presentationMode) var presentationMode
     @State private var videos: [Video] = []
     @State private var userPoints: Int = 0
+    @State private var currentTokens: Int = 5
+    @State private var lastTokenUsed: Date?
+    @State private var showTokenInfo = false
+
 
     // NEW: track which video is selected for playback
     @State private var selectedVideo: Video? = nil
@@ -41,7 +45,42 @@ struct LearnView: View {
                             .bold()
 
                         Spacer()
+                        
+                        HStack(spacing: 6) {
+                            ForEach(0..<5) { index in
+                                if index < currentTokens {
+                                    Image("token logo")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 16, height: 16)
+                                } else {
+                                    Image("token logo")
+                                        .resizable()
+                                        .renderingMode(.template)
+                                        .scaledToFit()
+                                        .frame(width: 16, height: 16)
+                                        .foregroundColor(.gray.opacity(0.4))
+                                }
+                            }
 
+                            Button(action: {
+                                showTokenInfo = true
+                            }) {
+                                Image(systemName: "plus.circle")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(.gray)
+                            }
+                            .buttonStyle(PlainButtonStyle()) // No tap highlight
+                        }
+                        .padding(8)
+                        .background(Color.white)
+                        .cornerRadius(12)
+                        .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
+
+
+
+
+                        /*
                         HStack(spacing: 4) {
                             Image("points logo")
                                 .resizable()
@@ -54,8 +93,10 @@ struct LearnView: View {
                         }
                         .padding(10)
                         .cornerRadius(10)
+                         */
                     }
                     .padding([.top, .leading, .trailing])
+                         
 
                     // Scrollable content (list of videos)
                     ScrollView(.vertical, showsIndicators: false) {
@@ -105,6 +146,7 @@ struct LearnView: View {
                 }
                 .toolbar(.hidden, for: .tabBar)
                 .onAppear {
+                    regenerateTokensIfNeeded()
                     fetchVideos()
                     fetchUserPoints()
                 }
@@ -120,6 +162,8 @@ struct LearnView: View {
                    onDismiss: {
                        fetchUserPoints()
                        fetchVideos()     // ← reload all videos, which re‑triggers each row’s check
+                        regenerateTokensIfNeeded()
+                
                    }
             ) { video in
                 NavigationStack {
@@ -128,7 +172,12 @@ struct LearnView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
             }
+        }.alert("Want more tokens?", isPresented: $showTokenInfo) {
+            Button("Got it", role: .cancel) { }
+        } message: {
+            Text("You need tokens to attempt quizzes. Each quiz uses 1 token. Tokens regenerate every 5 hours, up to a maximum of 5.")
         }
+
     }
     
     func fetchVideos() {
@@ -188,7 +237,55 @@ struct LearnView: View {
         }
     }
     
+    func regenerateTokensIfNeeded() {
+        guard let user = Auth.auth().currentUser else { return }
+        let db = Firestore.firestore()
+        let userDoc = db.collection("users").document(user.uid)
+
+        userDoc.getDocument { snapshot, error in
+            if let error = error {
+                print("Error fetching user data: \(error.localizedDescription)")
+                return
+            }
+
+            let now = Date()
+            var currentTokens = snapshot?.get("currentTokens") as? Int ?? 5
+            var lastTokenUsed = snapshot?.get("lastTokenUsed") as? Timestamp ?? Timestamp(date: now)
+
+            let lastDate = lastTokenUsed.dateValue()
+            let hoursSinceLast = now.timeIntervalSince(lastDate) / 3600
+            let tokensToRegenerate = Int(hoursSinceLast / 5)
+
+            if tokensToRegenerate > 0 && currentTokens < 5 {
+                let newTokenCount = min(currentTokens + tokensToRegenerate, 5)
+                let timeAdded = TimeInterval(tokensToRegenerate * 5 * 3600)
+                let newLastUsed = lastDate.addingTimeInterval(timeAdded)
+
+                userDoc.updateData([
+                    "currentTokens": newTokenCount,
+                    "lastTokenUsed": Timestamp(date: newLastUsed)
+                ]) { error in
+                    if let error = error {
+                        print("Error updating regenerated tokens: \(error.localizedDescription)")
+                    } else {
+                        print("Regenerated \(tokensToRegenerate) tokens → \(newTokenCount) total")
+                        self.currentTokens = newTokenCount
+                        self.lastTokenUsed = newLastUsed
+                    }
+                }
+            } else {
+                // Just sync current state if no regeneration
+                self.currentTokens = currentTokens
+                self.lastTokenUsed = lastDate
+            }
+        }
+    }
+
+
+    
 }
+
+
 
 struct VideoRow: View {
     let video: Video

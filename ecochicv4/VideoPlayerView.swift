@@ -11,6 +11,10 @@ struct VideoPlayerView: View {
     @State private var isQuizCompleted = false
     @State private var userScore: Int? = nil
     @State private var userPoints: Int = 0
+    @State private var currentTokens: Int = 5
+    @State private var isOutOfTokens: Bool = false
+    @State private var navigateToQuiz = false
+
     @State private var userId = Auth.auth().currentUser?.uid
     @Environment(\.dismiss) private var dismiss
     
@@ -85,14 +89,10 @@ struct VideoPlayerView: View {
                 //Spacer()
                 //goBackButton
             } else {
-                if isQuizEnabled {
-                    NavigationLink(
-                        destination: QuizView(
-                            quiz: quizQuestions,
-                            collectionId: video.id,
-                            collectionPoints: video.points
-                        )
-                    ) {
+                if isQuizEnabled && !isOutOfTokens {
+                    Button(action: {
+                        deductTokenAndStartQuiz()
+                    }) {
                         Text("Start Quiz")
                             .padding()
                             .frame(maxWidth: .infinity)
@@ -101,6 +101,17 @@ struct VideoPlayerView: View {
                             .cornerRadius(8)
                             .padding(.horizontal)
                     }
+
+                    // Hidden NavigationLink
+                    NavigationLink(
+                        destination: QuizView(
+                            quiz: quizQuestions,
+                            collectionId: video.id,
+                            collectionPoints: video.points
+                        ),
+                        isActive: $navigateToQuiz,
+                        label: { EmptyView() }
+                    )
                 } else {
                     Text("Start Quiz")
                         .padding()
@@ -111,9 +122,17 @@ struct VideoPlayerView: View {
                         .padding(.horizontal)
                         .opacity(0.7)
                 }
-                //Spacer()
-                //goBackButton
             }
+            
+            if isOutOfTokens {
+                Text("                You're out of tokens.                    ")
+                    .foregroundColor(.red)
+                    .font(.subheadline)
+                    .padding(.top, 4)
+                    .padding(.horizontal, 20)
+                    .multilineTextAlignment(.center)
+            }
+            
             if !video.about.isEmpty {
                 Text(video.about)
                     .font(.body)
@@ -130,8 +149,63 @@ struct VideoPlayerView: View {
             checkIfQuizAttempted()
             fetchUserPoints()
             fetchQuizQuestions()
+            fetchUserTokens()
         }
     }
+    
+    private func deductTokenAndStartQuiz() {
+        guard let userId = userId else { return }
+        let db = Firestore.firestore()
+        let userRef = db.collection("users").document(userId)
+
+        userRef.getDocument { document, error in
+            if let error = error {
+                print("Error fetching user document: \(error.localizedDescription)")
+                return
+            }
+
+            guard let data = document?.data() else { return }
+
+            var tokens = data["currentTokens"] as? Int ?? 0
+            if tokens <= 0 {
+                print("User has no tokens left")
+                self.isOutOfTokens = true
+                return
+            }
+
+            tokens -= 1
+            let now = Timestamp(date: Date())
+
+            userRef.updateData([
+                "currentTokens": tokens,
+                "lastTokenUsed": now
+            ]) { error in
+                if let error = error {
+                    print("Failed to deduct token: \(error.localizedDescription)")
+                } else {
+                    print("Token deducted. New total: \(tokens)")
+                    self.navigateToQuiz = true
+                }
+            }
+        }
+    }
+
+    
+    private func fetchUserTokens() {
+        guard let userId = userId else { return }
+        let db = Firestore.firestore()
+        db.collection("users").document(userId).getDocument { snapshot, error in
+            if let error = error {
+                print("Error fetching tokens: \(error.localizedDescription)")
+                return
+            }
+            let data = snapshot?.data()
+            let tokens = data?["currentTokens"] as? Int ?? 5
+            self.currentTokens = tokens
+            self.isOutOfTokens = tokens == 0
+        }
+    }
+
     
     private func checkIfQuizAttempted() {
         guard let userId = userId else { return }

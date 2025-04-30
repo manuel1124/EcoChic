@@ -16,8 +16,8 @@ struct HomeView: View {
     let categories = [
         (title: "Eco Shorts", imageName: "Eco Shorts"),
         (title: "Style Persona", imageName: "Style Persona"),
-        (title: "Fact or Fiction", imageName: "Fact or Fiction"),
-        (title: "Blitz Round", imageName: "Blitz Round")
+        (title: "Blitz Round", imageName: "Blitz Round"),
+        (title: "Fact or Fiction", imageName: "Fact or Fiction")
     ]
     
     var body: some View {
@@ -87,10 +87,13 @@ struct HomeView: View {
                               // destination builder
                               if category.title == "Eco Shorts" {
                                 LearnView()
-                                  .navigationBarBackButtonHidden(true)
+                                      .navigationBarBackButtonHidden(true)
                               } else if category.title == "Style Persona" {
                                 StylePersonaQuizView()
-                                  .navigationBarBackButtonHidden(true)
+                                      .navigationBarBackButtonHidden(true)
+                              } else if category.title == "Blitz Round" {
+                                BlitzRoundView()
+                                      .navigationBarBackButtonHidden(true)
                               } else {
                                 ComingSoonView()
                               }
@@ -253,90 +256,138 @@ func addNewVideo() {
     let db = Firestore.firestore()
     
     let videoData: [String: Any] = [
-        "title": "avoidFastFashion1",
-        "about": "What’s the most sustainable fashion choice you can make? It might be simpler than you think. In this video, we explore how rewearing, repairing, and making thoughtful choices can help you avoid fast fashion. From learning to mend your clothes to buying second-hand or researching ethical brands, discover small changes that make a big impact.",
+        "title": "How to Avoid Textile Waste",
+        "about": "Fast fashion fuels a throwaway culture — but your clothes don’t have to end up in landfills. In this video, we explore the growing issue of textile waste and how micro-trends contribute to the problem. From swapping and mending to upcycling and recycling, discover practical ways to give your clothes a second life and be part of the solution.",
         "points": 2500,
-        "duration": "1:31",
-        "url": "tXyE0mBexRM", // Replace with actual URL
-        "thumbnailUrl": "https://zerowastememoirs.com/wp-content/uploads/2024/11/ZWM-say-no-to-fast-fashion-1-720x540-1-1.jpg", // Replace with actual URL
+        "duration": "1:14", // Adjust if you have an exact duration
+        "url": "a40MH_PnOJQ",
+        "thumbnailUrl": "https://media.licdn.com/dms/image/v2/D5612AQHWzexoDanpBA/article-cover_image-shrink_720_1280/article-cover_image-shrink_720_1280/0/1678876830570?e=2147483647&v=beta&t=-DREqdK2Mxe6-512THMxePv5YCFyAA2uMCYzXaqeBok",
         "uploadedAt": FieldValue.serverTimestamp(),
-        "quizID": "whatareyourclothesmadeof_quiz1",
+        "quizID": "avoidTextileWaste_quiz1"
     ]
     
     db.collection("videos").addDocument(data: videoData) { error in
         if let error = error {
-            print("Error adding video: \(error.localizedDescription)")
+            print("❌ Error adding video: \(error.localizedDescription)")
         } else {
-            print("New video added successfully!")
+            print("✅ New video 'How to Avoid Textile Waste' added successfully!")
         }
     }
 }
 
+func generateBlitzRoundMadness() {
+    let db = Firestore.firestore()
+    let quizzesRef = db.collection("quizzes")
+    var allBlitzQuestions: [[String: Any]] = []
+
+    quizzesRef.getDocuments { snapshot, error in
+        if let error = error {
+            print("❌ Error fetching quizzes: \(error.localizedDescription)")
+            return
+        }
+
+        guard let documents = snapshot?.documents else {
+            print("❌ No quizzes found.")
+            return
+        }
+
+        for doc in documents {
+            if let questions = doc.data()["questions"] as? [[String: Any]] {
+                for question in questions {
+                    // Ensure each question has the required fields
+                    if let questionText = question["questionText"] as? String,
+                       let options = question["options"] as? [String],
+                       let correctAnswer = question["correctAnswer"] as? String {
+
+                        allBlitzQuestions.append([
+                            "questionText": questionText,
+                            "options": options,
+                            "correctAnswer": correctAnswer
+                        ])
+                    }
+                }
+            }
+        }
+
+        // Save to blitzRoundMadness
+        db.collection("quizzes").document("blitzRoundMadness").setData([
+            "questions": allBlitzQuestions
+        ]) { error in
+            if let error = error {
+                print("❌ Error saving Blitz Round: \(error.localizedDescription)")
+            } else {
+                print("✅ BlitzRoundMadness generated with \(allBlitzQuestions.count) questions.")
+            }
+        }
+    }
+}
+
+
 func addNewQuiz() {
     let db = Firestore.firestore()
     
-    let quizID = "avoidFastFashion1"
+    let quizID = "avoidTextileWaste_quiz1"
     
     let quizData: [String: Any] = [
         "questions": [
             [
-                "questionText": "What does the speaker say is the most sustainable thing you can do?",
+                "questionText": "What is one major reason textile waste is increasing around the world?",
                 "options": [
-                    "Buy organic cotton",
-                    "Recycle your old clothes",
-                    "Use what you already have",
-                    "Shop from local designers"
+                    "People are buying better quality clothes",
+                    "Fast fashion encourages people to treat clothes as disposable",
+                    "Thrift stores are becoming more popular",
+                    "Clothes are being made from stronger materials"
                 ],
-                "correctAnswer": "Use what you already have"
+                "correctAnswer": "Fast fashion encourages people to treat clothes as disposable"
             ],
             [
-                "questionText": "What is one suggested method for fixing minor clothing damage?",
+                "questionText": "Where does most unwanted clothing end up when donated in excess?",
                 "options": [
-                    "Taking it to a landfill",
-                    "Buying the same item new",
-                    "Sewing or repairing it",
-                    "Dyeing it a new colour"
+                    "It’s all resold locally",
+                    "It’s recycled into new clothes",
+                    "It’s often sent to landfills or dumped abroad",
+                    "It’s made into art projects"
                 ],
-                "correctAnswer": "Sewing or repairing it"
+                "correctAnswer": "It’s often sent to landfills or dumped abroad"
             ],
             [
-                "questionText": "What are some resources mentioned for learning how to repair clothes?",
+                "questionText": "What is a fun and sustainable way to give good-condition clothes a second life?",
                 "options": [
-                    "Fast fashion retailers",
-                    "Repair cafes and online tutorials",
-                    "Clothing hauls on social media",
-                    "Discount coupons"
+                    "Host a clothing swap with friends and family",
+                    "Throw them out if you're bored of them",
+                    "Pack them away and never wear them again",
+                    "Burn them to save space"
                 ],
-                "correctAnswer": "Repair cafes and online tutorials"
+                "correctAnswer": "Host a clothing swap with friends and family"
             ],
             [
-                "questionText": "What should you consider before buying new clothing?",
+                "questionText": "What can you do with old or damaged clothes instead of throwing them away?",
                 "options": [
-                    "If the item is trendy",
-                    "If it's on sale",
-                    "Where it comes from and if you truly need it",
-                    "If influencers are wearing it"
+                    "Turn them into rags",
+                    "Send them to textile recycling",
+                    "Upcycle old clothes into something your style",
+                    "All of the above"
                 ],
-                "correctAnswer": "Where it comes from and if you truly need it"
+                "correctAnswer": "All of the above"
             ],
             [
-                "questionText": "According to the video, what do our clothing purchases reflect?",
+                "questionText": "What’s one way to get involved in reducing textile waste in your area?",
                 "options": [
-                    "Our fashion sense",
-                    "Our income level",
-                    "Our values",
-                    "Our social media following"
+                    "Wait for big brands to create solutions",
+                    "Avoid fashion completely",
+                    "Look for and join communities that align with sustainable practices",
+                    "Throw out old clothes quickly to 'clean up'"
                 ],
-                "correctAnswer": "Our values"
+                "correctAnswer": "Look for and join communities that align with sustainable practices"
             ]
         ]
     ]
     
     db.collection("quizzes").document(quizID).setData(quizData) { error in
         if let error = error {
-            print("❌ Error adding sustainable clothing choices quiz: \(error.localizedDescription)")
+            print("❌ Error adding 'How to Avoid Textile Waste' quiz: \(error.localizedDescription)")
         } else {
-            print("✅ Sustainable clothing choices quiz added successfully!")
+            print("✅ Quiz 'How to Avoid Textile Waste' added successfully!")
         }
     }
 }

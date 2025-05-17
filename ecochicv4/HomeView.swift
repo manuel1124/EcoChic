@@ -118,6 +118,9 @@ struct HomeView: View {
                     //seedStylePersonaDocument()
                     //addNewQuiz()
                     //addNewVideo()
+                    //grant5000PointsToAllUsers()
+                    //subtract5000PointsFromAllUsers()
+                    //addLastCallCouponsToStore(storeId: "Hrb3AW8ddDWOFQ9GHwob")
                     updateUserStreak { updatedStreak, pointsEarned in
                         DispatchQueue.main.async {
                             self.streak = updatedStreak
@@ -252,29 +255,6 @@ func addNewStoreWithCoupons() {
     }
 }
 
-func addNewVideo() {
-    let db = Firestore.firestore()
-    
-    let videoData: [String: Any] = [
-        "title": "How to Avoid Textile Waste",
-        "about": "Fast fashion fuels a throwaway culture — but your clothes don’t have to end up in landfills. In this video, we explore the growing issue of textile waste and how micro-trends contribute to the problem. From swapping and mending to upcycling and recycling, discover practical ways to give your clothes a second life and be part of the solution.",
-        "points": 2500,
-        "duration": "1:14", // Adjust if you have an exact duration
-        "url": "a40MH_PnOJQ",
-        "thumbnailUrl": "https://media.licdn.com/dms/image/v2/D5612AQHWzexoDanpBA/article-cover_image-shrink_720_1280/article-cover_image-shrink_720_1280/0/1678876830570?e=2147483647&v=beta&t=-DREqdK2Mxe6-512THMxePv5YCFyAA2uMCYzXaqeBok",
-        "uploadedAt": FieldValue.serverTimestamp(),
-        "quizID": "avoidTextileWaste_quiz1"
-    ]
-    
-    db.collection("videos").addDocument(data: videoData) { error in
-        if let error = error {
-            print("❌ Error adding video: \(error.localizedDescription)")
-        } else {
-            print("✅ New video 'How to Avoid Textile Waste' added successfully!")
-        }
-    }
-}
-
 func generateBlitzRoundMadness() {
     let db = Firestore.firestore()
     let quizzesRef = db.collection("quizzes")
@@ -325,73 +305,94 @@ func generateBlitzRoundMadness() {
 
 func addNewQuiz() {
     let db = Firestore.firestore()
-    
-    let quizID = "avoidTextileWaste_quiz1"
-    
+    let quizID = "shoppingSustainably_quiz1"
+
     let quizData: [String: Any] = [
         "questions": [
             [
-                "questionText": "What is one major reason textile waste is increasing around the world?",
+                "questionText": "What are sustainable brands?",
                 "options": [
-                    "People are buying better quality clothes",
-                    "Fast fashion encourages people to treat clothes as disposable",
-                    "Thrift stores are becoming more popular",
-                    "Clothes are being made from stronger materials"
+                    "Brands that are only good for the environment",
+                    "Brands that are doing their part to ensure safe working conditions, have a limited impact on the planet, and are good for your health",
+                    "Brands that produce sustainable quantities of clothing",
+                    "Brands that consider the planet and people"
                 ],
-                "correctAnswer": "Fast fashion encourages people to treat clothes as disposable"
+                "correctAnswer": "Brands that are doing their part to ensure safe working conditions, have a limited impact on the planet, and are good for your health"
             ],
             [
-                "questionText": "Where does most unwanted clothing end up when donated in excess?",
+                "questionText": "What does the Good On You app do?",
                 "options": [
-                    "It’s all resold locally",
-                    "It’s recycled into new clothes",
-                    "It’s often sent to landfills or dumped abroad",
-                    "It’s made into art projects"
+                    "An app that indicates which brands are fast fashion",
+                    "An app for purchasing sustainable clothing",
+                    "An app that ranks brands based on environmental, social, and economic factors",
+                    "An app that provides sustainable fashion education"
                 ],
-                "correctAnswer": "It’s often sent to landfills or dumped abroad"
+                "correctAnswer": "An app that ranks brands based on environmental, social, and economic factors"
             ],
             [
-                "questionText": "What is a fun and sustainable way to give good-condition clothes a second life?",
+                "questionText": "What are B-Corp Certified Companies?",
                 "options": [
-                    "Host a clothing swap with friends and family",
-                    "Throw them out if you're bored of them",
-                    "Pack them away and never wear them again",
-                    "Burn them to save space"
+                    "Companies that pay to get certified without following ethical practices",
+                    "Companies that implement high social and environmental standards once to receive this certification",
+                    "Companies that follow all of the United Nations Sustainable Development Goals",
+                    "Companies must go through an annual and rigorous process to ensure their business practices are held to high social and environmental standards"
                 ],
-                "correctAnswer": "Host a clothing swap with friends and family"
+                "correctAnswer": "Companies must go through an annual and rigorous process to ensure their business practices are held to high social and environmental standards"
             ],
             [
-                "questionText": "What can you do with old or damaged clothes instead of throwing them away?",
+                "questionText": "Shopping from sustainable brands…",
                 "options": [
-                    "Turn them into rags",
-                    "Send them to textile recycling",
-                    "Upcycle old clothes into something your style",
-                    "All of the above"
+                    "Puts money into the pockets of fast fashion companies",
+                    "Increases the longevity of your closest",
+                    "Decreases the social and environmental impact of the clothes you purchase",
+                    "Makes you a good person"
                 ],
-                "correctAnswer": "All of the above"
+                "correctAnswer": "Decreases the social and environmental impact of the clothes you purchase"
             ],
             [
-                "questionText": "What’s one way to get involved in reducing textile waste in your area?",
+                "questionText": "Your values can be communicated to the fashion industry by…",
                 "options": [
-                    "Wait for big brands to create solutions",
-                    "Avoid fashion completely",
-                    "Look for and join communities that align with sustainable practices",
-                    "Throw out old clothes quickly to 'clean up'"
+                    "Emailing them directly",
+                    "Purchasing from sustainable brands",
+                    "Chatting with retail workers",
+                    "Making your own clothes"
                 ],
-                "correctAnswer": "Look for and join communities that align with sustainable practices"
+                "correctAnswer": "Purchasing from sustainable brands"
             ]
         ]
     ]
-    
+
     db.collection("quizzes").document(quizID).setData(quizData) { error in
         if let error = error {
-            print("❌ Error adding 'How to Avoid Textile Waste' quiz: \(error.localizedDescription)")
+            print("❌ Error adding 'Shopping Sustainably' quiz: \(error.localizedDescription)")
         } else {
-            print("✅ Quiz 'How to Avoid Textile Waste' added successfully!")
+            print("✅ Quiz 'Shopping Sustainably' added successfully!")
         }
     }
 }
 
+func addNewVideo() {
+    let db = Firestore.firestore()
+
+    let videoData: [String: Any] = [
+        "title": "Shopping Sustainably",
+        "about": "Shopping sustainably can significantly decrease the negative social and environmental impacts of your fashion purchases! In this video, we discuss what shopping sustainability looks like and what tools and options are available.",
+        "points": 2500,
+        "duration": "1:26",
+        "url": "smr1uEi1Dro",
+        "thumbnailUrl": "https://media.licdn.com/dms/image/v2/D4D12AQFr9iTXSpV_vQ/article-cover_image-shrink_600_2000/B4DZUFQ0LeG8Ac-/0/1739550049970?e=2147483647&v=beta&t=7vxSjVnFkWElnM63imgVhh-8JqOZRATesYgGYcbo_80",
+        "uploadedAt": FieldValue.serverTimestamp(),
+        "quizID": "shoppingSustainably_quiz1"
+    ]
+
+    db.collection("videos").addDocument(data: videoData) { error in
+        if let error = error {
+            print("❌ Error adding video: \(error.localizedDescription)")
+        } else {
+            print("✅ New video 'Shopping Sustainably' added successfully!")
+        }
+    }
+}
 
 
 //import FirebaseFirestore
@@ -499,32 +500,105 @@ func seedStyleQuiz() {
     }
 }
 
+import FirebaseFirestore
+
 func addAvailableCouponCodes() {
     let db = Firestore.firestore()
-        let couponId = "morethanafad_coupon1"
+    let couponId = "lastcall_coupon3"
 
-        let couponCodes = [
-            "MTAF2C6520",
-            "MTAF99E420",
-            "MTAF92C620",
-            "MTAF049620",
-            "MTAF607820",
-            "MTAF511420",
-            "MTAF962320",
-            "MTAF450820",
-            "MTAF145E20",
-            "MTAFE00420"
-        ]
+    let couponCodes = [
+        "LSTCCBM5M25",
+        "LSTCCADS625",
+        "LSTCCTPW225",
+        "LSTCCFGRF25",
+        "LSTCCTCPQ25"
+    ]
 
-        let couponRef = db.collection("coupons").document(couponId)
+    let couponRef = db.collection("coupons").document(couponId)
 
-        couponRef.updateData([
-            "available": couponCodes
-        ]) { error in
-            if let error = error {
-                print("Error updating coupon codes: \(error.localizedDescription)")
-            } else {
-                print("Successfully added coupon codes to \(couponId)")
+    couponRef.updateData([
+        "available": couponCodes
+    ]) { error in
+        if let error = error {
+            print("Error updating coupon codes: \(error.localizedDescription)")
+        } else {
+            print("Successfully added coupon codes to \(couponId)")
+        }
+    }
+}
+
+
+func grant5000PointsToAllUsers() {
+    let db = Firestore.firestore()
+    db.collection("users").getDocuments { (snapshot, error) in
+        if let error = error {
+            print("❌ Error fetching users: \(error.localizedDescription)")
+            return
+        }
+
+        guard let documents = snapshot?.documents else { return }
+
+        for document in documents {
+            let userRef = document.reference
+            userRef.updateData(["points": FieldValue.increment(Int64(7000))]) { error in
+                if let error = error {
+                    print("❌ Error updating user \(document.documentID): \(error.localizedDescription)")
+                } else {
+                    print("✅ User \(document.documentID) has been awarded 5000 points.")
+                }
             }
         }
     }
+}
+
+func subtract5000PointsFromAllUsers() {
+    let db = Firestore.firestore()
+    db.collection("users").getDocuments { (snapshot, error) in
+        if let error = error {
+            print("❌ Error fetching users: \(error.localizedDescription)")
+            return
+        }
+
+        guard let documents = snapshot?.documents else { return }
+
+        for document in documents {
+            let userRef = document.reference
+            userRef.updateData(["points": FieldValue.increment(Int64(-5000))]) { error in
+                if let error = error {
+                    print("❌ Error updating user \(document.documentID): \(error.localizedDescription)")
+                } else {
+                    print("✅ User \(document.documentID) has been deducted 5000 points.")
+                }
+            }
+        }
+    }
+}
+
+func addLastCallCouponsToStore(storeId: String) {
+    let db = Firestore.firestore()
+    
+    // Define the new coupons
+    let newCoupons = [
+        [
+            "id": "lastcall_coupon2",
+            "discountAmount": 0.20,  // 20% discount
+            "requiredPoints": 25000,
+        ],
+        [
+            "id": "lastcall_coupon3",
+            "discountAmount": 0.25,  // 25% discount
+            "requiredPoints": 40000,
+        ]
+    ]
+    
+    // Update the store with the new coupons
+    db.collection("stores").document(storeId).updateData([
+        "coupons": FieldValue.arrayUnion(newCoupons)
+    ]) { error in
+        if let error = error {
+            print("Error adding coupons: \(error.localizedDescription)")
+        } else {
+            print("Successfully added lastcall coupons to the store.")
+        }
+    }
+}

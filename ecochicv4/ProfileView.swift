@@ -420,7 +420,7 @@ struct RedeemedCouponRow: View {
                     .font(.headline)
                     .bold()
 
-                Text("Valid till May 14, 2025")
+                Text("Valid till June 16, 2025")
                     .font(.subheadline)
                     .foregroundColor(.gray)
             }
